@@ -1,0 +1,139 @@
+# Router llm-d en modo standalone: UN pod con dos contenedores
+#   envoy  → recibe el tráfico OpenAI en :8081 y pregunta al EPP por cada petición
+#   epp    → Endpoint Picker: vigila los pods del InferencePool, raspa su /metrics,
+#            aplica config/epp-config.yaml y devuelve "manda esto a <IP-pod>:8000"
+#
+# Equivale a 'helm template' del chart llm-d-router-standalone v0.11.0, reducido a lo
+# que usamos y con recursos para un 5600G (el chart pide 8 CPU + 4 CPU por defecto).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qwen3-8b-epp
+  labels:
+    app: qwen3-8b-epp
+    llm-d.ai/igw-mode: llm-d-router-standalone
+spec:
+  replicas: 1             # 1 activo: el índice de prefijos vive en memoria del EPP
+  strategy:
+    type: Recreate        # recomendado por llm-d para EPP con estado
+  selector:
+    matchLabels:
+      app: qwen3-8b-epp
+  template:
+    metadata:
+      labels:
+        app: qwen3-8b-epp
+        llm-d.ai/igw-mode: llm-d-router-standalone
+    spec:
+      serviceAccountName: qwen3-8b-epp
+      # Todo vive en heavy1 (la Pi es control plane y arm64). Sin GPU, pero heavy1
+      # tiene el taint de GPU, así que hace falta la toleración.
+      nodeSelector:
+        kubernetes.io/hostname: heavy1
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: envoy
+          image: docker.io/envoyproxy/envoy:distroless-v1.33.2   # la del chart v0.11.0
+          imagePullPolicy: IfNotPresent
+          command: ["envoy"]
+          args:
+            - --service-node
+            - envoy-sidecar
+            - --log-level
+            - warn
+            - --concurrency      # sin esto Envoy lanza un worker por hilo de la CPU
+            - "2"
+            - --drain-strategy
+            - immediate
+            - --drain-time-s
+            - "60"
+            - -c
+            - /etc/envoy/envoy.yaml
+          ports:
+            - name: http
+              containerPort: 8081
+            - name: envoy-metrics
+              containerPort: 19001
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 19001
+            periodSeconds: 5
+            failureThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            requests:
+              cpu: 200m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: envoy-config
+              mountPath: /etc/envoy
+              readOnly: true
+
+        - name: epp
+          image: ghcr.io/llm-d/llm-d-router-endpoint-picker   # tag en kustomization.yaml
+          imagePullPolicy: IfNotPresent
+          args:
+            - --pool-name=qwen3-8b
+            - --pool-namespace=$(NAMESPACE)
+            - --pool-group=inference.networking.k8s.io
+            - --config-file=/config/epp-config.yaml
+            - --grpc-health-port=9003
+            - --zap-encoder=json
+            - --v=2                          # 3-4 para ver el porqué de cada decisión
+            - --tracing=false
+            - --metrics-endpoint-auth=false  # /metrics sin token: curl y Prometheus fácil (lab)
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          ports:
+            - name: grpc
+              containerPort: 9002
+            - name: grpc-health
+              containerPort: 9003
+            - name: metrics
+              containerPort: 9090
+          livenessProbe:
+            grpc:
+              port: 9003
+              service: inference-extension
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            grpc:
+              port: 9003
+              service: inference-extension
+            periodSeconds: 2
+          lifecycle:
+            preStop:
+              sleep:              # el chart usa 'sh -c sleep 5', pero la imagen es distroless
+                seconds: 5        # (sin shell); la acción sleep nativa va bien en K8s 1.35
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              memory: 2Gi
+          volumeMounts:
+            - name: epp-config
+              mountPath: /config
+              readOnly: true
+      volumes:
+        - name: envoy-config
+          configMap:
+            name: qwen3-8b-envoy        # configMapGenerator: cambia el hash → rollout solo
+        - name: epp-config
+          configMap:
+            name: qwen3-8b-epp-config   # idem

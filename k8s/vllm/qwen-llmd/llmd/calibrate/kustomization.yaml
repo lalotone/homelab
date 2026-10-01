@@ -1,0 +1,26 @@
+# Mide peakPrefillThroughput (tokens/s) de UNA réplica: Qwen3-8B FP8 en una 5060 Ti.
+# Es el dato que usa prefix-cache-affinity-filter para estimar el TTFT de cada pod.
+# Desde el PORTÁTIL, con el sistema SIN tráfico:
+#
+#   kubectl -n llm delete job calibrate-peak-throughput --ignore-not-found
+#   kubectl apply -k calibrate/
+#   kubectl -n llm wait --for=condition=complete --timeout=600s job/calibrate-peak-throughput
+#   kubectl -n llm logs job/calibrate-peak-throughput | grep PEAK_PREFILL_THROUGHPUT
+#
+# Pon el número en config/epp-config.yaml (peakPrefillThroughput) y 'kubectl apply -k .'
+# (el ConfigMap cambia de hash → el EPP se reinicia solo).
+#
+# Prompts de token-IDs aleatorios → 0% cache, prefill real. CHUNK_SIZE = --max-num-batched-tokens
+# de ../model/deployment.yaml (4096): un chunk de prefill completo, como pide la receta de llm-d.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: llm
+
+resources:
+  - job.yaml
+
+configMapGenerator:
+  - name: calibrate-script
+    files:
+      - calibrate.py

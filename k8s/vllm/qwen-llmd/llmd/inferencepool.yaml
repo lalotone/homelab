@@ -1,0 +1,21 @@
+# InferencePool = "el Service de los LLMs". Agrupa los pods que sirven el MISMO modelo
+# y dice qué EPP (Endpoint Picker) decide a cuál va cada petición.
+#
+# Selecciona los pods de ../model/deployment.yaml por la etiqueta que ya llevan;
+# esos pods no se tocan. El Service round-robin (:30810) sigue funcionando en paralelo.
+apiVersion: inference.networking.k8s.io/v1
+kind: InferencePool
+metadata:
+  name: qwen3-8b
+spec:
+  selector:
+    matchLabels:
+      llm.model: qwen3-8b
+  targetPorts:
+    - number: 8000            # puerto de vLLM en cada pod
+  appProtocol: http
+  endpointPickerRef:          # Service del EPP (service.yaml)
+    name: qwen3-8b-epp
+    port:
+      number: 9002            # ext_proc gRPC
+    failureMode: FailClose    # sin EPP no hay a quién mandar (Envoy usa ORIGINAL_DST)

@@ -1,0 +1,36 @@
+# Modo B, paso 2: router llm-d (standalone: Envoy + EPP en un pod) delante de los
+# mismos pods qwen3-8b de ../model/. Todo desde el PORTÁTIL:
+#
+#   kubectl apply -k crds/          # una vez: CRD InferencePool (cluster)
+#   kubectl apply -k .              # router
+#
+#   http://<heavy1>:30820/v1  → router llm-d (cache-aware)
+#   http://<heavy1>:30810/v1  → Service normal (round-robin), sigue ahí para comparar
+#
+# Requisitos: ../model aplicado y las 2 réplicas Ready (el 27B a 0).
+# Sin Namespace a propósito ('llm' es del kustomization del 27B): un
+# 'kubectl delete -k .' aquí solo quita el router; ni el namespace ni los vLLM.
+#
+# Basado en llm-d-router v0.11.0 (chart llm-d-router-standalone + guía optimized-baseline).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: llm
+
+resources:
+  - inferencepool.yaml
+  - rbac.yaml
+  - epp.yaml
+  - service.yaml
+
+configMapGenerator:
+  - name: qwen3-8b-epp-config
+    files:
+      - config/epp-config.yaml
+  - name: qwen3-8b-envoy
+    files:
+      - config/envoy.yaml
+
+images:
+  - name: ghcr.io/llm-d/llm-d-router-endpoint-picker
+    newTag: v0.11.0

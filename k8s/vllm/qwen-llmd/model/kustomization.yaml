@@ -1,0 +1,23 @@
+# Modo B — "ChatGPT en casa":   kubectl apply -k .
+#   qwen3-8b ×2 réplicas → http://<heavy1>:30810/v1  (dentro: vllm-qwen3-8b.llm:8000)
+#
+# ANTES: el 27B (Modo A) usa las dos tarjetas. Apágalo, no lo borres:
+#   kubectl -n llm scale deploy/vllm-qwen38 --replicas=0
+# Volver al Modo A:
+#   kubectl -n llm scale deploy/vllm-qwen3-8b --replicas=0
+#   kubectl -n llm scale deploy/vllm-qwen38 --replicas=1
+#
+# Sin Namespace a propósito: 'llm' lo crea el kustomization del 27B. Así un
+# 'kubectl delete -k' aquí no se lleva el namespace entero.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: llm
+
+resources:
+  - deployment.yaml
+
+# Misma versión de vLLM que el 27B
+images:
+  - name: vllm/vllm-openai
+    newTag: v0.30.0

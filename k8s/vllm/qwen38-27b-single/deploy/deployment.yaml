@@ -1,0 +1,124 @@
+# Qwen3.8-27B NVFP4 en heavy1 (2× RTX 5060 Ti, TP=2).
+# Flags idénticos a serve-vllm-qwen38.sh v9 (la config que ya funciona).
+#
+# Rutas en heavy1:
+#   /mnt/vllm/hf     caché de Hugging Face (el modelo, ~22 GB) → no se vuelve a bajar
+#   /mnt/vllm/cache  kernels compilados (FlashInfer, torch.compile) → no se recompilan
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-qwen38
+  namespace: llm
+  labels:
+    app: vllm-qwen38
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate                      # GPUs exclusivas: nunca dos pods a la vez
+  selector:
+    matchLabels:
+      app: vllm-qwen38
+  template:
+    metadata:
+      labels:
+        app: vllm-qwen38
+    spec:
+      runtimeClassName: nvidia          # la crea el GPU Operator
+      nodeSelector:
+        kubernetes.io/hostname: heavy1  # modelo y cachés están en su disco
+      tolerations:
+        - key: nvidia.com/gpu           # taint que reserva las GPUs de heavy1
+          operator: Exists
+          effect: NoSchedule
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai       # versión fijada en kustomization.yaml
+          command: ["vllm", "serve"]    # explícito: no depender del ENTRYPOINT de la imagen
+          args:
+            - unsloth/Qwen3.8-27B-NVFP4
+            - --served-model-name=qwen3.8-27b
+            - --host=0.0.0.0
+            - --port=8000
+            - --tensor-parallel-size=2
+            - --gpu-memory-utilization=0.91       # 0.92 es el máximo que ha arrancado en heavy1
+            - --kv-cache-dtype=fp8
+            - --max-model-len=98304
+            - --max-num-seqs=4
+            - --max-num-batched-tokens=2048       # el autotuner de FlashInfer escala con esto
+            - --enable-prefix-caching
+            - --chat-template=/templates/chat_template.jinja
+            - --reasoning-parser=qwen3
+            - --enable-auto-tool-choice
+            - --tool-call-parser=qwen3_coder
+            - --linear-backend=auto
+            - --trust-remote-code
+            - --language-model-only               # sin torre de visión: +0.43 GiB/tarjeta
+            - --max-cudagraph-capture-size=16     # 4 seqs × 3 tokens MTP = 12
+            - '--speculative-config={"method":"mtp","num_speculative_tokens":2}'
+          env:
+            - name: HF_HUB_OFFLINE              # el modelo ya está en /mnt/vllm/hf
+              value: "1"
+            - name: MAX_JOBS                    # JIT de FlashInfer: no reventar la RAM del 5600G
+              value: "2"
+            - name: NCCL_DEBUG                  # si NCCL falla, que diga por qué
+              value: WARN
+          ports:
+            - name: http
+              containerPort: 8000
+          resources:
+            requests:
+              cpu: "4"
+              memory: 16Gi
+              nvidia.com/gpu: 2
+            limits:
+              memory: 48Gi
+              nvidia.com/gpu: 2
+          startupProbe:                         # primer arranque: imagen + JIT, puede tardar
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 180               # 30 min
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 5
+          volumeMounts:
+            - name: shm                         # TP=2 + NCCL: los 64 MB por defecto no bastan
+              mountPath: /dev/shm
+            - name: hf-cache
+              mountPath: /root/.cache/huggingface
+            - name: jit-cache
+              mountPath: /root/.cache/vllm
+              subPath: vllm
+            - name: jit-cache
+              mountPath: /root/.cache/flashinfer
+              subPath: flashinfer
+            - name: chat-template
+              mountPath: /templates
+              readOnly: true
+      volumes:
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Gi
+        - name: hf-cache
+          hostPath:
+            path: /mnt/vllm/hf
+            type: Directory
+        - name: jit-cache
+          hostPath:
+            path: /mnt/vllm/cache
+            type: DirectoryOrCreate
+        - name: chat-template
+          configMap:
+            name: vllm-qwen38-chat-template     # generado por kustomize desde chat_template.jinja

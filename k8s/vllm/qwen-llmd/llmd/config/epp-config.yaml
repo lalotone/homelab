@@ -1,0 +1,35 @@
+# Cerebro del router: qué plugins usa el EPP para elegir réplica.
+# Composición = guía oficial "optimized-baseline" de llm-d (la recomendada para vLLM):
+#
+#   1. approx-prefix-cache-producer  el EPP recuerda qué prefijos (bloques de 64 tokens)
+#                                    mandó a cada pod → estima su cache sin preguntar a vLLM
+#   2. inflight-load-producer        cuenta tokens "en vuelo" por pod (lo que aún no ha acabado)
+#   3. prefix-cache-affinity-filter  si un pod ya tiene ≥80% del prompt en cache → SOLO ese
+#                                    ("sticky")... salvo que esté tan cargado que su TTFT
+#                                    estimado supere al de otro en > maxTTFTPenaltyMs
+#   4. token-load-scorer             entre los que quedan, el de menos tokens en vuelo
+#   (picker max-score, parsers OpenAI y métricas de vLLM se añaden solos por defecto)
+#
+# Resultado: las conversaciones vuelven a "su" réplica (cache caliente → TTFT bajo) y
+# las nuevas van a la menos cargada. "Sticky until saturated".
+apiVersion: llm-d.ai/v1alpha1
+kind: EndpointPickerConfig
+plugins:
+  - type: approx-prefix-cache-producer
+    parameters:
+      autoTune: true                  # lee block_size (64) y tamaño de cache de /metrics de vLLM
+  - type: inflight-load-producer
+  - type: prefix-cache-affinity-filter
+    parameters:
+      affinityThreshold: 0.80         # default
+      maxTTFTPenaltyMs: 18000         # default
+      explorationProbability: 0       # default
+      # CALIBRAR: el default (15928 tok/s) es Qwen3-32B en 2×H100. Una 5060 Ti con
+      # Qwen3-8B FP8 será otra cifra. Mídelo con calibrate/ y pon aquí el valor.
+      peakPrefillThroughput: 15928
+  - type: token-load-scorer
+schedulingProfiles:
+  - name: default
+    plugins:
+      - pluginRef: prefix-cache-affinity-filter
+      - pluginRef: token-load-scorer

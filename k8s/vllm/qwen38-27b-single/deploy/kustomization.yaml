@@ -1,0 +1,24 @@
+# kubectl apply -k .
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+
+# Misma versión que el vLLM del host: los flags se validaron contra ella.
+# Compruébala con:  /opt/vllm/bin/vllm --version   → newTag: v<esa versión>
+images:
+  - name: vllm/vllm-openai
+    newTag: v0.30.0
+
+# La plantilla parcheada (thinking medium, preserve_thinking chain, "high"→medium)
+# que generó y verificó serve-vllm-qwen38.sh. Cópiala a esta carpeta:
+#   cp ~/.cache/vllm-qwen38/chat_template.think.medium.chain.jinja chat_template.jinja
+# Si la cambias, kustomize genera otro ConfigMap y el Deployment se reinicia solo.
+configMapGenerator:
+  - name: vllm-qwen38-chat-template
+    namespace: llm
+    files:
+      - chat_template.jinja

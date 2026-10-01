@@ -1,0 +1,49 @@
+# Job de la receta oficial de llm-d (calibration-peak-throughput.yaml) con nuestros valores.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: calibrate-peak-throughput
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/hostname: heavy1
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: calibrate
+          image: python:3.11-slim
+          command: ["python3", "/scripts/calibrate.py"]
+          env:
+            - name: VLLM_ENDPOINT           # directo a vLLM (sin router): mide la GPU, no el routing
+              value: http://vllm-qwen3-8b.llm:8000
+            - name: MODEL_NAME
+              value: qwen3-8b               # --served-model-name
+            - name: CHUNK_SIZE
+              value: "4096"                 # = --max-num-batched-tokens
+            - name: T_MAX_SECONDS
+              value: "18"
+            - name: NUM_WARMUP
+              value: "5"
+            - name: NUM_MEASUREMENTS
+              value: "20"
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+      volumes:
+        - name: script
+          configMap:
+            name: calibrate-script
+            defaultMode: 0555

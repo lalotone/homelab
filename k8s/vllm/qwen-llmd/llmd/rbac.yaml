@@ -1,0 +1,34 @@
+# Permisos mínimos del EPP (los mismos que pone el chart, sin los de Prometheus/leader election):
+# ver pods (endpoints del pool), su InferencePool y, si existen, InferenceObjectives
+# (prioridades por petición; opcionales, el EPP detecta si la CRD está instalada).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: qwen3-8b-epp
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: qwen3-8b-epp
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "watch", "list"]
+  - apiGroups: ["inference.networking.k8s.io"]
+    resources: ["inferencepools"]
+    verbs: ["get", "watch", "list"]
+  - apiGroups: ["inference.networking.x-k8s.io", "llm-d.ai"]
+    resources: ["inferenceobjectives", "inferencemodelrewrites"]
+    verbs: ["get", "watch", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: qwen3-8b-epp
+subjects:
+  - kind: ServiceAccount
+    name: qwen3-8b-epp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: qwen3-8b-epp

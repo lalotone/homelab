@@ -1,0 +1,227 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1120" width="1400" height="1120" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2F5FC4"/>
+    </marker>
+    <marker id="arrB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1E8A5A"/>
+    </marker>
+    <marker id="arrK" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#B0661A"/>
+    </marker>
+    <style>
+      .title { font-size: 26px; font-weight: 700; fill: #1B2430; }
+      .subtitle { font-size: 14px; fill: #556070; }
+      .band-title { font-size: 15px; font-weight: 700; letter-spacing: 0.04em; }
+      .band-sub { font-size: 12.5px; fill: #556070; }
+      .box-title { font-size: 14px; font-weight: 700; fill: #1B2430; }
+      .box-text { font-size: 12px; fill: #3A4452; }
+      .mono { font-family: 'JetBrains Mono', Menlo, Consolas, monospace; font-size: 11.5px; fill: #3A4452; }
+      .tag { font-size: 11px; font-weight: 600; }
+      .note-title { font-size: 14px; font-weight: 700; fill: #1B2430; }
+      .note-text { font-size: 12px; fill: #3A4452; }
+    </style>
+  </defs>
+
+  <rect width="1400" height="1120" fill="#FAFBFC"/>
+
+  <!-- Cabecera -->
+  <text x="40" y="48" class="title">Home AI lab · vLLM on Kubernetes</text>
+  <text x="40" y="74" class="subtitle">Same 2× RTX 5060 Ti, two jobs: a personal coding model, or a small-scale copy of how ChatGPT/Claude-style services serve one model to many users.</text>
+
+  <!-- ═══════════ MODO A ═══════════ -->
+  <rect x="24" y="96" width="940" height="196" rx="14" fill="#EEF3FC" stroke="#2F5FC4" stroke-width="1.5"/>
+  <text x="44" y="124" class="band-title" fill="#2F5FC4">MODE A — DAILY DRIVER: CODING WITH OPENCODE</text>
+  <text x="44" y="144" class="band-sub">One heavy user · maximum quality and context · the whole box for one model</text>
+
+  <rect x="44" y="164" width="200" height="110" rx="10" fill="#FFFFFF" stroke="#9DB4E3"/>
+  <text x="62" y="190" class="box-title">Laptop · OpenCode</text>
+  <text x="62" y="212" class="box-text">coding agent, tool calls</text>
+  <text x="62" y="230" class="box-text">reasoning replayed</text>
+  <text x="62" y="256" class="mono">prune + reserved 24K</text>
+
+  <rect x="290" y="180" width="220" height="78" rx="10" fill="#FFFFFF" stroke="#9DB4E3"/>
+  <text x="308" y="206" class="box-title">Service · NodePort</text>
+  <text x="308" y="228" class="mono">:30800 → :8000</text>
+  <text x="308" y="246" class="box-text">LAN or Tailscale</text>
+
+  <rect x="556" y="156" width="380" height="122" rx="10" fill="#FFFFFF" stroke="#2F5FC4" stroke-width="1.5"/>
+  <text x="576" y="182" class="box-title">vllm-qwen38 · Qwen3.8-27B NVFP4</text>
+  <text x="576" y="204" class="box-text">TP=2 across both GPUs (NCCL) · 96K context · MTP ×2</text>
+  <text x="576" y="223" class="box-text">thinking: medium · preserve_thinking: chain</text>
+  <text x="576" y="242" class="box-text">≈ 50 t/s reasoning · ≈ 65 t/s code</text>
+  <rect x="576" y="252" width="140" height="20" rx="10" fill="#E2EAFA"/>
+  <text x="590" y="266" class="tag" fill="#2F5FC4">replicas: 1 ↔ 0</text>
+
+  <line x1="244" y1="219" x2="286" y2="219" stroke="#2F5FC4" stroke-width="2" marker-end="url(#arrA)"/>
+  <line x1="510" y1="219" x2="552" y2="219" stroke="#2F5FC4" stroke-width="2" marker-end="url(#arrA)"/>
+
+  <!-- ═══════════ MODO B ═══════════ -->
+  <rect x="24" y="308" width="940" height="414" rx="14" fill="#EDF7F1" stroke="#1E8A5A" stroke-width="1.5"/>
+  <text x="44" y="336" class="band-title" fill="#1E8A5A">MODE B — "CHATGPT AT HOME": ONE MODEL, MANY USERS, CACHE-AWARE ROUTING</text>
+  <text x="44" y="356" class="band-sub">Identical replicas of one model · each batches many users · llm-d sends every request to the best replica</text>
+
+  <!-- Usuarios -->
+  <rect x="44" y="452" width="140" height="124" rx="10" fill="#FFFFFF" stroke="#9FD3B8"/>
+  <g fill="#1E8A5A" opacity="0.85">
+    <circle cx="80" cy="482" r="9"/><rect x="68" y="493" width="24" height="16" rx="7"/>
+    <circle cx="114" cy="482" r="9"/><rect x="102" y="493" width="24" height="16" rx="7"/>
+    <circle cx="148" cy="482" r="9"/><rect x="136" y="493" width="24" height="16" rx="7"/>
+  </g>
+  <text x="58" y="536" class="box-title">Users</text>
+  <text x="58" y="556" class="box-text">many at once</text>
+
+  <!-- OpenWebUI -->
+  <rect x="206" y="440" width="172" height="148" rx="10" fill="#FFFFFF" stroke="#9FD3B8"/>
+  <text x="222" y="466" class="box-title">OpenWebUI</text>
+  <text x="222" y="488" class="box-text">login · users · roles</text>
+  <text x="222" y="506" class="box-text">chat history · RAG</text>
+  <text x="222" y="524" class="box-text">the "ChatGPT" front end</text>
+  <text x="222" y="552" class="mono">→ one /v1 endpoint</text>
+  <text x="222" y="570" class="mono">  (OpenAI API)</text>
+
+  <!-- Router llm-d -->
+  <rect x="400" y="376" width="272" height="330" rx="12" fill="#FFFFFF" stroke="#1E8A5A" stroke-width="1.5"/>
+  <text x="416" y="400" class="box-title">llm-d router · standalone mode</text>
+  <text x="416" y="418" class="box-text">no Istio needed — Envoy runs as a sidecar</text>
+
+  <rect x="416" y="430" width="240" height="58" rx="8" fill="#F2FAF5" stroke="#9FD3B8"/>
+  <text x="430" y="452" class="box-title">Envoy proxy</text>
+  <text x="430" y="472" class="mono">OpenAI API · :80</text>
+
+  <rect x="416" y="512" width="240" height="180" rx="8" fill="#F2FAF5" stroke="#9FD3B8"/>
+  <text x="430" y="534" class="box-title">EPP · inference scheduler</text>
+  <text x="430" y="556" class="box-text">1. filter: replicas holding this</text>
+  <text x="444" y="573" class="box-text">conversation's prefix (KV cache)</text>
+  <text x="430" y="593" class="box-text">2. score: KV-cache use · queue</text>
+  <text x="430" y="613" class="box-text">3. score: in-flight tokens</text>
+  <text x="430" y="633" class="box-text">→ picks one replica per request</text>
+  <line x1="430" y1="645" x2="642" y2="645" stroke="#D5E8DD"/>
+  <text x="430" y="664" class="mono">approximate → precise</text>
+  <text x="430" y="681" class="mono">(precise = KV events)</text>
+
+  <!-- Envoy ↔ EPP -->
+  <line x1="536" y1="488" x2="536" y2="508" stroke="#1E8A5A" stroke-width="1.5" stroke-dasharray="3 3" marker-end="url(#arrB)" marker-start="url(#arrB)"/>
+  <text x="544" y="502" class="tag" fill="#1E8A5A">which replica?</text>
+
+  <!-- InferencePool -->
+  <rect x="694" y="376" width="258" height="330" rx="12" fill="#F6FBF8" stroke="#1E8A5A" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="710" y="400" class="tag" fill="#1E8A5A">INFERENCEPOOL · qwen3-8b</text>
+  <text x="710" y="416" class="box-text">one Deployment · replicas: 2</text>
+
+  <rect x="710" y="428" width="226" height="128" rx="10" fill="#FFFFFF" stroke="#1E8A5A" stroke-width="1.5"/>
+  <text x="724" y="452" class="box-title">vLLM replica 0</text>
+  <text x="724" y="472" class="box-text">Qwen3-8B FP8 · 1 GPU</text>
+  <text x="724" y="490" class="box-text">continuous batching · 8 seqs</text>
+  <text x="724" y="508" class="box-text">prefix cache · block 64</text>
+  <text x="724" y="526" class="box-text">32K context · ~50K KV tokens</text>
+  <text x="724" y="546" class="mono">publishes KV events</text>
+
+  <rect x="710" y="566" width="226" height="128" rx="10" fill="#FFFFFF" stroke="#1E8A5A" stroke-width="1.5"/>
+  <text x="724" y="590" class="box-title">vLLM replica 1</text>
+  <text x="724" y="610" class="box-text">Qwen3-8B FP8 · 1 GPU</text>
+  <text x="724" y="628" class="box-text">continuous batching · 8 seqs</text>
+  <text x="724" y="646" class="box-text">prefix cache · block 64</text>
+  <text x="724" y="664" class="box-text">32K context · ~50K KV tokens</text>
+  <text x="724" y="684" class="mono">publishes KV events</text>
+
+  <!-- Flujo de peticiones -->
+  <line x1="184" y1="514" x2="202" y2="514" stroke="#1E8A5A" stroke-width="2" marker-end="url(#arrB)"/>
+  <path d="M378,514 C392,514 388,459 412,459" fill="none" stroke="#1E8A5A" stroke-width="2" marker-end="url(#arrB)"/>
+  <path d="M656,452 C676,452 684,470 706,470" fill="none" stroke="#1E8A5A" stroke-width="2" marker-end="url(#arrB)"/>
+  <path d="M656,466 C686,466 676,606 706,606" fill="none" stroke="#1E8A5A" stroke-width="2" marker-end="url(#arrB)"/>
+
+  <!-- KV events de vuelta al EPP -->
+  <path d="M710,536 C688,536 684,568 660,568" fill="none" stroke="#B0661A" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrK)"/>
+  <path d="M710,674 C686,674 684,602 660,602" fill="none" stroke="#B0661A" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrK)"/>
+
+  <!-- ═══════════ HARDWARE ═══════════ -->
+  <rect x="990" y="96" width="386" height="626" rx="14" fill="#FFFFFF" stroke="#8A94A3" stroke-width="1.5"/>
+  <text x="1010" y="124" class="band-title" fill="#4A5463">HEAVY1 · K8S WORKER</text>
+  <text x="1010" y="144" class="band-sub">joined over Tailscale · node-ip 100.x</text>
+
+  <rect x="1020" y="236" width="326" height="104" rx="10" fill="#FFF6E5" stroke="#D99A1E" stroke-width="1.5"/>
+  <text x="1040" y="262" class="box-title">GPU0 · RTX 5060 Ti 16 GB</text>
+  <text x="1040" y="284" class="box-text">Blackwell sm_120 · 15.47 GiB usable</text>
+  <text x="1040" y="304" class="box-text">Mode A: half of the 27B (TP rank 0)</text>
+  <text x="1040" y="324" class="box-text">Mode B: Qwen3-8B replica 0</text>
+
+  <rect x="1020" y="356" width="326" height="58" rx="10" fill="#FBF3E4" stroke="#D99A1E" stroke-dasharray="5 4"/>
+  <text x="1040" y="380" class="tag" fill="#9A6A0F">⇅ ONE MODE AT A TIME — GPUs are not shared</text>
+  <text x="1040" y="400" class="mono">kubectl scale … --replicas=0 / 1|2</text>
+
+  <rect x="1020" y="430" width="326" height="104" rx="10" fill="#FFF6E5" stroke="#D99A1E" stroke-width="1.5"/>
+  <text x="1040" y="456" class="box-title">GPU1 · RTX 5060 Ti 16 GB</text>
+  <text x="1040" y="478" class="box-text">PCIe 2.0 x4 slot (B450) · fine for TP=1</text>
+  <text x="1040" y="498" class="box-text">Mode A: half of the 27B (TP rank 1)</text>
+  <text x="1040" y="518" class="box-text">Mode B: Qwen3-8B replica 1</text>
+
+  <rect x="1020" y="566" width="326" height="58" rx="10" fill="#F3F5F8" stroke="#C3CAD4"/>
+  <text x="1040" y="590" class="box-title">Ryzen 5 5600G · 64 GB RAM</text>
+  <text x="1040" y="610" class="box-text">host NVIDIA driver 580 (used by the operator)</text>
+  <rect x="1020" y="638" width="326" height="58" rx="10" fill="#F3F5F8" stroke="#C3CAD4"/>
+  <text x="1040" y="662" class="box-title">/mnt/vllm (hostPath)</text>
+  <text x="1040" y="682" class="mono">hf/ models · cache/ compiled kernels</text>
+
+  <!-- A → GPUs -->
+  <path d="M936,196 C980,196 976,276 1016,276" fill="none" stroke="#2F5FC4" stroke-width="2" marker-end="url(#arrA)"/>
+  <path d="M936,236 C994,236 958,470 1016,470" fill="none" stroke="#2F5FC4" stroke-width="2" marker-end="url(#arrA)"/>
+  <!-- B → GPUs -->
+  <path d="M936,480 C982,480 978,316 1016,316" fill="none" stroke="#1E8A5A" stroke-width="2" marker-end="url(#arrB)"/>
+  <path d="M936,630 C984,630 978,510 1016,510" fill="none" stroke="#1E8A5A" stroke-width="2" marker-end="url(#arrB)"/>
+
+  <!-- ═══════════ INFRA ═══════════ -->
+  <text x="40" y="756" class="band-title" fill="#4A5463">CLUSTER PLUMBING</text>
+  <rect x="40" y="768" width="322" height="64" rx="10" fill="#FFFFFF" stroke="#C3CAD4"/>
+  <text x="56" y="792" class="box-title">Control plane · Raspberry Pi</text>
+  <text x="56" y="812" class="box-text">k8s-master · Tailscale 100.x.y.z</text>
+  <rect x="378" y="768" width="322" height="64" rx="10" fill="#FFFFFF" stroke="#C3CAD4"/>
+  <text x="394" y="792" class="box-title">Cilium over Tailscale</text>
+  <text x="394" y="812" class="box-text">CNI · VXLAN · MTU 1230 (not an inference gateway)</text>
+  <rect x="716" y="768" width="322" height="64" rx="10" fill="#FFFFFF" stroke="#C3CAD4"/>
+  <text x="732" y="792" class="box-title">NVIDIA GPU Operator</text>
+  <text x="732" y="812" class="box-text">toolkit + device plugin · driver from host</text>
+  <rect x="1054" y="768" width="322" height="64" rx="10" fill="#FFFFFF" stroke="#C3CAD4"/>
+  <text x="1070" y="792" class="box-title">Prometheus + Grafana</text>
+  <text x="1070" y="812" class="box-text">llm-d prerequisite · TTFT, hit rate, queues</text>
+
+  <!-- ═══════════ NOTAS ═══════════ -->
+  <rect x="40" y="852" width="430" height="246" rx="12" fill="#FFFFFF" stroke="#C3CAD4"/>
+  <text x="58" y="878" class="note-title">How big chat services serve one model</text>
+  <text x="58" y="902" class="note-text">• Many identical replicas of the same model.</text>
+  <text x="58" y="922" class="note-text">• Each replica batches many users at once</text>
+  <text x="70" y="940" class="note-text">(continuous batching): GPUs stay busy.</text>
+  <text x="58" y="960" class="note-text">• A cache-aware router in front: a conversation goes</text>
+  <text x="70" y="978" class="note-text">back to the replica that already holds its history</text>
+  <text x="70" y="996" class="note-text">in KV cache → fast first token, more users per GPU.</text>
+  <text x="58" y="1016" class="note-text">• At large scale: prefill/decode on separate GPUs,</text>
+  <text x="70" y="1034" class="note-text">autoscaling, priorities and quotas.</text>
+  <text x="58" y="1058" class="note-text">This lab: 2 replicas, same mechanics, tiny scale.</text>
+  <text x="58" y="1078" class="note-text">That's exactly what llm-d packages for Kubernetes.</text>
+
+  <rect x="486" y="852" width="430" height="246" rx="12" fill="#FFFFFF" stroke="#C3CAD4"/>
+  <text x="504" y="878" class="note-title">Implementation path</text>
+  <text x="504" y="902" class="note-text">1. Baseline: plain Service, round-robin. Measure</text>
+  <text x="518" y="920" class="note-text">TTFT and prefix-cache hit rate with N chat users.</text>
+  <text x="504" y="942" class="note-text">2. llm-d router in standalone mode (Envoy + EPP,</text>
+  <text x="518" y="960" class="note-text">approximate prefix scorer). Measure again.</text>
+  <text x="504" y="982" class="note-text">3. Precise prefix routing: vLLM publishes KV events</text>
+  <text x="518" y="1000" class="note-text">over ZMQ, block size 64 on both sides.</text>
+  <text x="504" y="1022" class="note-text">4. Scale the experiment without GPUs:</text>
+  <text x="518" y="1040" class="note-text">llm-d-inference-sim emulates 8+ vLLM replicas.</text>
+  <text x="504" y="1064" class="note-text">P/D disaggregation: only as an experiment — no P2P</text>
+  <text x="518" y="1082" class="note-text">on consumer cards, KV would cross system RAM.</text>
+
+  <rect x="932" y="852" width="444" height="246" rx="12" fill="#FFFFFF" stroke="#C3CAD4"/>
+  <text x="950" y="878" class="note-title">Why Qwen3-8B here, not Qwen3.5</text>
+  <text x="950" y="902" class="note-text">• Qwen3.5/3.8 are hybrid (Gated DeltaNet). vLLM gives</text>
+  <text x="962" y="920" class="note-text">them huge KV blocks (528+ tokens) → prompts shorter</text>
+  <text x="962" y="938" class="note-text">than a block get 0% prefix-cache hits.</text>
+  <text x="950" y="958" class="note-text">• llm-d's prefix scorers assume small blocks (64):</text>
+  <text x="962" y="976" class="note-text">on a hybrid model they'd track cache that isn't there.</text>
+  <text x="950" y="996" class="note-text">• Qwen3-8B: standard attention, official FP8 (~8 GB),</text>
+  <text x="962" y="1014" class="note-text">same family as llm-d's own guides → routing works</text>
+  <text x="962" y="1032" class="note-text">as designed and the gains are measurable.</text>
+  <text x="950" y="1056" class="note-text">Mode A keeps the 27B: one user, no router, so the</text>
+  <text x="950" y="1074" class="note-text">hybrid block size doesn't matter there.</text>
+</svg>
