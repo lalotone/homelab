@@ -1,17 +1,17 @@
-# Modo B, paso 2: router llm-d (standalone: Envoy + EPP en un pod) delante de los
-# mismos pods qwen3-8b de ../model/. Todo desde el PORTÁTIL:
+# Mode B, step 2: llm-d router (standalone: Envoy + EPP in one pod) in front of the
+# same qwen3-8b pods from ../model/. Everything from the LAPTOP:
 #
-#   kubectl apply -k crds/          # una vez: CRD InferencePool (cluster)
+#   kubectl apply -k crds/          # once: InferencePool CRD (cluster-wide)
 #   kubectl apply -k .              # router
 #
-#   http://<heavy1>:30820/v1  → router llm-d (cache-aware)
-#   http://<heavy1>:30810/v1  → Service normal (round-robin), sigue ahí para comparar
+#   http://<heavy1>:30820/v1  → llm-d router (cache-aware)
+#   http://<heavy1>:30810/v1  → plain Service (round-robin), kept for comparison
 #
-# Requisitos: ../model aplicado y las 2 réplicas Ready (el 27B a 0).
-# Sin Namespace a propósito ('llm' es del kustomization del 27B): un
-# 'kubectl delete -k .' aquí solo quita el router; ni el namespace ni los vLLM.
+# Requirements: ../model applied and both replicas Ready (the 27B scaled to 0).
+# No Namespace on purpose ('llm' belongs to the 27B kustomization): a
+# 'kubectl delete -k .' here only removes the router, not the namespace or the vLLM pods.
 #
-# Basado en llm-d-router v0.11.0 (chart llm-d-router-standalone + guía optimized-baseline).
+# Based on llm-d-router v0.11.0 (llm-d-router-standalone chart + optimized-baseline guide).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 

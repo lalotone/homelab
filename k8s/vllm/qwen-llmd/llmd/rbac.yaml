@@ -1,6 +1,6 @@
-# Permisos mínimos del EPP (los mismos que pone el chart, sin los de Prometheus/leader election):
-# ver pods (endpoints del pool), su InferencePool y, si existen, InferenceObjectives
-# (prioridades por petición; opcionales, el EPP detecta si la CRD está instalada).
+# Minimal EPP permissions (the same as the chart, minus the Prometheus/leader election ones):
+# read pods (the pool's endpoints), its InferencePool and, if present, InferenceObjectives
+# (per-request priorities; optional, the EPP detects whether the CRD is installed).
 apiVersion: v1
 kind: ServiceAccount
 metadata:

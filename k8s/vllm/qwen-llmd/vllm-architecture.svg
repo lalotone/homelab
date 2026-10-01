@@ -25,11 +25,11 @@
 
   <rect width="1400" height="1120" fill="#FAFBFC"/>
 
-  <!-- Cabecera -->
+  <!-- Header -->
   <text x="40" y="48" class="title">Home AI lab · vLLM on Kubernetes</text>
   <text x="40" y="74" class="subtitle">Same 2× RTX 5060 Ti, two jobs: a personal coding model, or a small-scale copy of how ChatGPT/Claude-style services serve one model to many users.</text>
 
-  <!-- ═══════════ MODO A ═══════════ -->
+  <!-- ═══════════ MODE A ═══════════ -->
   <rect x="24" y="96" width="940" height="196" rx="14" fill="#EEF3FC" stroke="#2F5FC4" stroke-width="1.5"/>
   <text x="44" y="124" class="band-title" fill="#2F5FC4">MODE A — DAILY DRIVER: CODING WITH OPENCODE</text>
   <text x="44" y="144" class="band-sub">One heavy user · maximum quality and context · the whole box for one model</text>
@@ -56,12 +56,12 @@
   <line x1="244" y1="219" x2="286" y2="219" stroke="#2F5FC4" stroke-width="2" marker-end="url(#arrA)"/>
   <line x1="510" y1="219" x2="552" y2="219" stroke="#2F5FC4" stroke-width="2" marker-end="url(#arrA)"/>
 
-  <!-- ═══════════ MODO B ═══════════ -->
+  <!-- ═══════════ MODE B ═══════════ -->
   <rect x="24" y="308" width="940" height="414" rx="14" fill="#EDF7F1" stroke="#1E8A5A" stroke-width="1.5"/>
   <text x="44" y="336" class="band-title" fill="#1E8A5A">MODE B — "CHATGPT AT HOME": ONE MODEL, MANY USERS, CACHE-AWARE ROUTING</text>
   <text x="44" y="356" class="band-sub">Identical replicas of one model · each batches many users · llm-d sends every request to the best replica</text>
 
-  <!-- Usuarios -->
+  <!-- Users -->
   <rect x="44" y="452" width="140" height="124" rx="10" fill="#FFFFFF" stroke="#9FD3B8"/>
   <g fill="#1E8A5A" opacity="0.85">
     <circle cx="80" cy="482" r="9"/><rect x="68" y="493" width="24" height="16" rx="7"/>
@@ -125,13 +125,13 @@
   <text x="724" y="664" class="box-text">32K context · ~50K KV tokens</text>
   <text x="724" y="684" class="mono">publishes KV events</text>
 
-  <!-- Flujo de peticiones -->
+  <!-- Request flow -->
   <line x1="184" y1="514" x2="202" y2="514" stroke="#1E8A5A" stroke-width="2" marker-end="url(#arrB)"/>
   <path d="M378,514 C392,514 388,459 412,459" fill="none" stroke="#1E8A5A" stroke-width="2" marker-end="url(#arrB)"/>
   <path d="M656,452 C676,452 684,470 706,470" fill="none" stroke="#1E8A5A" stroke-width="2" marker-end="url(#arrB)"/>
   <path d="M656,466 C686,466 676,606 706,606" fill="none" stroke="#1E8A5A" stroke-width="2" marker-end="url(#arrB)"/>
 
-  <!-- KV events de vuelta al EPP -->
+  <!-- KV events back to the EPP -->
   <path d="M710,536 C688,536 684,568 660,568" fill="none" stroke="#B0661A" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrK)"/>
   <path d="M710,674 C686,674 684,602 660,602" fill="none" stroke="#B0661A" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrK)"/>
 
@@ -185,7 +185,7 @@
   <text x="1070" y="792" class="box-title">Prometheus + Grafana</text>
   <text x="1070" y="812" class="box-text">llm-d prerequisite · TTFT, hit rate, queues</text>
 
-  <!-- ═══════════ NOTAS ═══════════ -->
+  <!-- ═══════════ NOTES ═══════════ -->
   <rect x="40" y="852" width="430" height="246" rx="12" fill="#FFFFFF" stroke="#C3CAD4"/>
   <text x="58" y="878" class="note-title">How big chat services serve one model</text>
   <text x="58" y="902" class="note-text">• Many identical replicas of the same model.</text>

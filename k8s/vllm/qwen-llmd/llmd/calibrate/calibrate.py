@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copiado de llm-d/guides/recipes/router/calibration (Apache-2.0), sin cambios.
+# Copied from llm-d/guides/recipes/router/calibration (Apache-2.0), unchanged.
 """Measure peak prefill throughput against a live vLLM endpoint.
 
 Sends warmup + measurement requests of exactly CHUNK_SIZE tokens (as token

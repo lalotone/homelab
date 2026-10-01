@@ -1,4 +1,4 @@
-# OpenCode / clientes: http://<IP de heavy1, LAN o Tailscale>:30800/v1
+# OpenCode / clients: http://<heavy1 IP, LAN or Tailscale>:30800/v1
 apiVersion: v1
 kind: Service
 metadata:

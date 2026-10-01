@@ -1,18 +1,18 @@
-# "ChatGPT en casa" — un modelo, dos réplicas idénticas, una por tarjeta.
+# "ChatGPT at home" — one model, two identical replicas, one per card.
 #
-# Paso 1 del laboratorio (BASELINE): Service normal → kube-proxy reparte las
-# peticiones sin saber nada de cachés. Aquí se mide TTFT y prefix-cache hit
-# rate con varios usuarios. Después llm-d se pone DELANTE de estos mismos pods
-# (InferencePool selecciona por las etiquetas de abajo) sin tocarlos.
+# Lab step 1 (BASELINE): plain Service → kube-proxy spreads requests
+# without knowing anything about caches. This is where TTFT and prefix-cache hit
+# rate are measured with several users. Later llm-d goes IN FRONT of these same pods
+# (the InferencePool selects them by the labels below) without touching them.
 #
-# Modelo: Qwen/Qwen3-8B-FP8 — atención estándar (36 capas, 8 KV heads, dim 128).
-# NO Qwen3.5: es híbrido y vLLM le pone bloques de KV de 528+ tokens, lo que
-# rompe el prefix caching en prompts cortos y los scorers de llm-d.
+# Model: Qwen/Qwen3-8B-FP8 — standard attention (36 layers, 8 KV heads, dim 128).
+# NOT Qwen3.5: it's hybrid and vLLM gives it KV blocks of 528+ tokens, which
+# breaks prefix caching on short prompts and llm-d's scorers.
 #
-# Presupuesto por tarjeta (estimado; vLLM lo dice en el log al arrancar):
-#   budget 0.90 × 15.47 = 13.9 GiB · pesos ~8.8 · grafos+activaciones ~1.2
+# Budget per card (estimated; vLLM prints it in the startup log):
+#   budget 0.90 × 15.47 = 13.9 GiB · weights ~8.8 · graphs+activations ~1.2
 #   KV fp8 = 36 × 8 × 128 × 2 × 1 B = 72 KiB/token → pool ~3.9 GiB ≈ 55K tokens
-#   → 8 conversaciones a la vez de hasta 32K, o muchas más de chat normal (2-4K).
+#   → 8 concurrent conversations of up to 32K, or many more regular chats (2-4K).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -22,12 +22,12 @@ metadata:
     app.kubernetes.io/part-of: llm-pool
     llm.model: qwen3-8b
 spec:
-  replicas: 2                            # una por GPU
+  replicas: 2                            # one per GPU
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 0                        # no hay 3ª GPU: nunca un pod de más
-      maxUnavailable: 1                  # actualiza de una en una: el servicio sigue vivo
+      maxSurge: 0                        # there's no 3rd GPU: never an extra pod
+      maxUnavailable: 1                  # update one at a time: the service stays up
   selector:
     matchLabels:
       app: vllm-qwen3-8b
@@ -36,7 +36,7 @@ spec:
       labels:
         app: vllm-qwen3-8b
         app.kubernetes.io/part-of: llm-pool
-        llm.model: qwen3-8b              # lo que seleccionará el InferencePool de llm-d
+        llm.model: qwen3-8b              # what llm-d's InferencePool will select
     spec:
       runtimeClassName: nvidia
       nodeSelector:
@@ -56,21 +56,21 @@ spec:
             - --host=0.0.0.0
             - --port=8000
             - --tensor-parallel-size=1
-            - --gpu-memory-utilization=0.90      # sin NCCL: 1.55 GiB fuera del budget bastan
+            - --gpu-memory-utilization=0.90      # no NCCL: 1.55 GiB outside the budget is enough
             - --kv-cache-dtype=fp8
-            - --max-model-len=32768              # contexto nativo de Qwen3-8B
-            - --max-num-seqs=8                   # usuarios a la vez por réplica
+            - --max-model-len=32768              # Qwen3-8B native context
+            - --max-num-seqs=8                   # concurrent users per replica
             - --max-num-batched-tokens=4096
             - --enable-prefix-caching
-            - --block-size=64                    # el de la guía de llm-d (paso 3: KV events)
+            - --block-size=64                    # the one from the llm-d guide (step 3: KV events)
             - --reasoning-parser=qwen3
             - --enable-auto-tool-choice
-            - --tool-call-parser=hermes          # Qwen3 usa tool calls estilo Hermes (JSON)
+            - --tool-call-parser=hermes          # Qwen3 uses Hermes-style tool calls (JSON)
             - --max-cudagraph-capture-size=16
-            # Sampling oficial de Qwen3 en modo thinking (el modo por defecto)
+            # Official Qwen3 sampling for thinking mode (the default mode)
             - '--override-generation-config={"temperature":0.6,"top_p":0.95,"top_k":20,"min_p":0.0}'
           env:
-            - name: MAX_JOBS                     # JIT: no reventar la RAM del 5600G
+            - name: MAX_JOBS                     # JIT: don't blow up the 5600G's RAM
               value: "2"
           ports:
             - name: http
@@ -83,13 +83,13 @@ spec:
             limits:
               memory: 28Gi
               nvidia.com/gpu: 1
-          startupProbe:                          # 1ª vez: descarga ~9 GB + JIT
+          startupProbe:                          # 1st time: ~9 GB download + JIT
             httpGet:
               path: /health
               port: http
             periodSeconds: 10
             failureThreshold: 180
-          readinessProbe:                        # sin Ready, el Service no le manda tráfico
+          readinessProbe:                        # until Ready, the Service sends it no traffic
             httpGet:
               path: /health
               port: http
@@ -126,8 +126,8 @@ spec:
             path: /mnt/vllm/cache
             type: DirectoryOrCreate
 ---
-# Baseline: Service normal. kube-proxy reparte sin mirar cachés ni colas.
-# ClusterIP para OpenWebUI (dentro del cluster) + NodePort para probar desde el portátil.
+# Baseline: plain Service. kube-proxy spreads requests without looking at caches or queues.
+# ClusterIP for OpenWebUI (inside the cluster) + NodePort for testing from the laptop.
 apiVersion: v1
 kind: Service
 metadata:

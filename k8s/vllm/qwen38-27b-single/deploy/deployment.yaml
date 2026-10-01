@@ -1,9 +1,9 @@
-# Qwen3.8-27B NVFP4 en heavy1 (2× RTX 5060 Ti, TP=2).
-# Flags idénticos a serve-vllm-qwen38.sh v9 (la config que ya funciona).
+# Qwen3.8-27B NVFP4 on heavy1 (2× RTX 5060 Ti, TP=2).
+# Same flags as serve-vllm-qwen38.sh v9 (the config that already works).
 #
-# Rutas en heavy1:
-#   /mnt/vllm/hf     caché de Hugging Face (el modelo, ~22 GB) → no se vuelve a bajar
-#   /mnt/vllm/cache  kernels compilados (FlashInfer, torch.compile) → no se recompilan
+# Paths on heavy1:
+#   /mnt/vllm/hf     Hugging Face cache (the model, ~22 GB) → not downloaded again
+#   /mnt/vllm/cache  compiled kernels (FlashInfer, torch.compile) → not recompiled
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -14,7 +14,7 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    type: Recreate                      # GPUs exclusivas: nunca dos pods a la vez
+    type: Recreate                      # exclusive GPUs: never two pods at once
   selector:
     matchLabels:
       app: vllm-qwen38
@@ -23,29 +23,29 @@ spec:
       labels:
         app: vllm-qwen38
     spec:
-      runtimeClassName: nvidia          # la crea el GPU Operator
+      runtimeClassName: nvidia          # created by the GPU Operator
       nodeSelector:
-        kubernetes.io/hostname: heavy1  # modelo y cachés están en su disco
+        kubernetes.io/hostname: heavy1  # model and caches live on its disk
       tolerations:
-        - key: nvidia.com/gpu           # taint que reserva las GPUs de heavy1
+        - key: nvidia.com/gpu           # taint reserving heavy1's GPUs
           operator: Exists
           effect: NoSchedule
       terminationGracePeriodSeconds: 60
       containers:
         - name: vllm
-          image: vllm/vllm-openai       # versión fijada en kustomization.yaml
-          command: ["vllm", "serve"]    # explícito: no depender del ENTRYPOINT de la imagen
+          image: vllm/vllm-openai       # version pinned in kustomization.yaml
+          command: ["vllm", "serve"]    # explicit: don't rely on the image ENTRYPOINT
           args:
             - unsloth/Qwen3.8-27B-NVFP4
             - --served-model-name=qwen3.8-27b
             - --host=0.0.0.0
             - --port=8000
             - --tensor-parallel-size=2
-            - --gpu-memory-utilization=0.91       # 0.92 es el máximo que ha arrancado en heavy1
+            - --gpu-memory-utilization=0.91       # 0.92 is the highest that has started on heavy1
             - --kv-cache-dtype=fp8
             - --max-model-len=98304
             - --max-num-seqs=4
-            - --max-num-batched-tokens=2048       # el autotuner de FlashInfer escala con esto
+            - --max-num-batched-tokens=2048       # the FlashInfer autotuner scales with this
             - --enable-prefix-caching
             - --chat-template=/templates/chat_template.jinja
             - --reasoning-parser=qwen3
@@ -53,15 +53,15 @@ spec:
             - --tool-call-parser=qwen3_coder
             - --linear-backend=auto
             - --trust-remote-code
-            - --language-model-only               # sin torre de visión: +0.43 GiB/tarjeta
+            - --language-model-only               # no vision tower: +0.43 GiB/card
             - --max-cudagraph-capture-size=16     # 4 seqs × 3 tokens MTP = 12
             - '--speculative-config={"method":"mtp","num_speculative_tokens":2}'
           env:
-            - name: HF_HUB_OFFLINE              # el modelo ya está en /mnt/vllm/hf
+            - name: HF_HUB_OFFLINE              # the model is already in /mnt/vllm/hf
               value: "1"
-            - name: MAX_JOBS                    # JIT de FlashInfer: no reventar la RAM del 5600G
+            - name: MAX_JOBS                    # FlashInfer JIT: don't blow up the 5600G's RAM
               value: "2"
-            - name: NCCL_DEBUG                  # si NCCL falla, que diga por qué
+            - name: NCCL_DEBUG                  # if NCCL fails, have it say why
               value: WARN
           ports:
             - name: http
@@ -74,7 +74,7 @@ spec:
             limits:
               memory: 48Gi
               nvidia.com/gpu: 2
-          startupProbe:                         # primer arranque: imagen + JIT, puede tardar
+          startupProbe:                         # first start: image + JIT, can take a while
             httpGet:
               path: /health
               port: http
@@ -93,7 +93,7 @@ spec:
             timeoutSeconds: 10
             failureThreshold: 5
           volumeMounts:
-            - name: shm                         # TP=2 + NCCL: los 64 MB por defecto no bastan
+            - name: shm                         # TP=2 + NCCL: the default 64 MB isn't enough
               mountPath: /dev/shm
             - name: hf-cache
               mountPath: /root/.cache/huggingface
@@ -121,4 +121,4 @@ spec:
             type: DirectoryOrCreate
         - name: chat-template
           configMap:
-            name: vllm-qwen38-chat-template     # generado por kustomize desde chat_template.jinja
+            name: vllm-qwen38-chat-template     # generated by kustomize from chat_template.jinja

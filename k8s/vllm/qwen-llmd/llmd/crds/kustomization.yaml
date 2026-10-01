@@ -1,9 +1,9 @@
-# Paso 0 (una vez, a nivel de cluster): CRD InferencePool (inference.networking.k8s.io/v1)
+# Step 0 (once, cluster-wide): InferencePool CRD (inference.networking.k8s.io/v1)
 #   kubectl apply -k crds/
 #
-# Versión fijada a la que usa llm-d-router v0.11.0 (deploy/components/crds-gie).
-# Separado del resto a propósito: un 'kubectl delete -k .' del router NO borra la CRD
-# (borrar una CRD borra todos sus objetos en todo el cluster).
+# Pinned to the version llm-d-router v0.11.0 uses (deploy/components/crds-gie).
+# Kept apart on purpose: a 'kubectl delete -k .' of the router does NOT delete the CRD
+# (deleting a CRD deletes all its objects across the whole cluster).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 

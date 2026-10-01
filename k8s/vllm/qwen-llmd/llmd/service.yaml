@@ -1,5 +1,5 @@
-# 1) Service del EPP: lo referencia el InferencePool (endpointPickerRef) y expone
-#    las métricas del router (llm_d_epp_*) en :9090.
+# 1) EPP Service: referenced by the InferencePool (endpointPickerRef); also exposes
+#    the router metrics (llm_d_epp_*) on :9090.
 apiVersion: v1
 kind: Service
 metadata:
@@ -22,9 +22,9 @@ spec:
       port: 19001
       targetPort: envoy-metrics
 ---
-# 2) La entrada de los usuarios: API OpenAI a través de Envoy + EPP.
-#    Desde el portátil:  http://<heavy1>:30820/v1   (compárala con :30810, round-robin)
-#    Dentro (OpenWebUI): http://qwen3-8b-router.llm:8000/v1
+# 2) The user entry point: OpenAI API through Envoy + EPP.
+#    From the laptop:    http://<heavy1>:30820/v1   (compare with :30810, round-robin)
+#    Inside (OpenWebUI): http://qwen3-8b-router.llm:8000/v1
 apiVersion: v1
 kind: Service
 metadata:

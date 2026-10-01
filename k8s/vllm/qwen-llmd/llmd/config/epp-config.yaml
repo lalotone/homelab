@@ -1,31 +1,31 @@
-# Cerebro del router: qué plugins usa el EPP para elegir réplica.
-# Composición = guía oficial "optimized-baseline" de llm-d (la recomendada para vLLM):
+# Router brain: which plugins the EPP uses to pick a replica.
+# Composition = llm-d's official "optimized-baseline" guide (the one recommended for vLLM):
 #
-#   1. approx-prefix-cache-producer  el EPP recuerda qué prefijos (bloques de 64 tokens)
-#                                    mandó a cada pod → estima su cache sin preguntar a vLLM
-#   2. inflight-load-producer        cuenta tokens "en vuelo" por pod (lo que aún no ha acabado)
-#   3. prefix-cache-affinity-filter  si un pod ya tiene ≥80% del prompt en cache → SOLO ese
-#                                    ("sticky")... salvo que esté tan cargado que su TTFT
-#                                    estimado supere al de otro en > maxTTFTPenaltyMs
-#   4. token-load-scorer             entre los que quedan, el de menos tokens en vuelo
-#   (picker max-score, parsers OpenAI y métricas de vLLM se añaden solos por defecto)
+#   1. approx-prefix-cache-producer  the EPP remembers which prefixes (64-token blocks)
+#                                    it sent to each pod → estimates its cache without asking vLLM
+#   2. inflight-load-producer        counts tokens "in flight" per pod (not finished yet)
+#   3. prefix-cache-affinity-filter  if a pod already holds ≥80% of the prompt in cache → ONLY that one
+#                                    ("sticky")... unless it's so loaded that its estimated
+#                                    TTFT exceeds another pod's by > maxTTFTPenaltyMs
+#   4. token-load-scorer             among the remaining pods, the one with the fewest tokens in flight
+#   (max-score picker, OpenAI parsers and vLLM metrics are added automatically by default)
 #
-# Resultado: las conversaciones vuelven a "su" réplica (cache caliente → TTFT bajo) y
-# las nuevas van a la menos cargada. "Sticky until saturated".
+# Result: conversations go back to "their" replica (warm cache → low TTFT) and
+# new ones go to the least-loaded one. "Sticky until saturated".
 apiVersion: llm-d.ai/v1alpha1
 kind: EndpointPickerConfig
 plugins:
   - type: approx-prefix-cache-producer
     parameters:
-      autoTune: true                  # lee block_size (64) y tamaño de cache de /metrics de vLLM
+      autoTune: true                  # reads block_size (64) and cache size from vLLM /metrics
   - type: inflight-load-producer
   - type: prefix-cache-affinity-filter
     parameters:
       affinityThreshold: 0.80         # default
       maxTTFTPenaltyMs: 18000         # default
       explorationProbability: 0       # default
-      # CALIBRAR: el default (15928 tok/s) es Qwen3-32B en 2×H100. Una 5060 Ti con
-      # Qwen3-8B FP8 será otra cifra. Mídelo con calibrate/ y pon aquí el valor.
+      # CALIBRATE: the default (15928 tok/s) is Qwen3-32B on 2×H100. A 5060 Ti with
+      # Qwen3-8B FP8 will give a different number. Measure it with calibrate/ and put it here.
       peakPrefillThroughput: 15928
   - type: token-load-scorer
 schedulingProfiles:

@@ -1,4 +1,4 @@
-# Job de la receta oficial de llm-d (calibration-peak-throughput.yaml) con nuestros valores.
+# Job from the official llm-d recipe (calibration-peak-throughput.yaml) with our values.
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -20,7 +20,7 @@ spec:
           image: python:3.11-slim
           command: ["python3", "/scripts/calibrate.py"]
           env:
-            - name: VLLM_ENDPOINT           # directo a vLLM (sin router): mide la GPU, no el routing
+            - name: VLLM_ENDPOINT           # straight to vLLM (no router): measures the GPU, not the routing
               value: http://vllm-qwen3-8b.llm:8000
             - name: MODEL_NAME
               value: qwen3-8b               # --served-model-name

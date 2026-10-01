@@ -1,10 +1,10 @@
-# Router llm-d en modo standalone: UN pod con dos contenedores
-#   envoy  → recibe el tráfico OpenAI en :8081 y pregunta al EPP por cada petición
-#   epp    → Endpoint Picker: vigila los pods del InferencePool, raspa su /metrics,
-#            aplica config/epp-config.yaml y devuelve "manda esto a <IP-pod>:8000"
+# llm-d router in standalone mode: ONE pod with two containers
+#   envoy  → receives OpenAI traffic on :8081 and asks the EPP about each request
+#   epp    → Endpoint Picker: watches the InferencePool pods, scrapes their /metrics,
+#            applies config/epp-config.yaml and answers "send this to <pod-IP>:8000"
 #
-# Equivale a 'helm template' del chart llm-d-router-standalone v0.11.0, reducido a lo
-# que usamos y con recursos para un 5600G (el chart pide 8 CPU + 4 CPU por defecto).
+# Equivalent to 'helm template' of the llm-d-router-standalone v0.11.0 chart, trimmed to
+# what we use and with resources sized for a 5600G (the chart asks for 8 CPU + 4 CPU by default).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -13,9 +13,9 @@ metadata:
     app: qwen3-8b-epp
     llm-d.ai/igw-mode: llm-d-router-standalone
 spec:
-  replicas: 1             # 1 activo: el índice de prefijos vive en memoria del EPP
+  replicas: 1             # 1 active: the prefix index lives in the EPP's memory
   strategy:
-    type: Recreate        # recomendado por llm-d para EPP con estado
+    type: Recreate        # recommended by llm-d for a stateful EPP
   selector:
     matchLabels:
       app: qwen3-8b-epp
@@ -26,8 +26,8 @@ spec:
         llm-d.ai/igw-mode: llm-d-router-standalone
     spec:
       serviceAccountName: qwen3-8b-epp
-      # Todo vive en heavy1 (la Pi es control plane y arm64). Sin GPU, pero heavy1
-      # tiene el taint de GPU, así que hace falta la toleración.
+      # Everything runs on heavy1 (the Pi is the control plane and arm64). No GPU, but heavy1
+      # carries the GPU taint, so the toleration is needed.
       nodeSelector:
         kubernetes.io/hostname: heavy1
       tolerations:
@@ -37,7 +37,7 @@ spec:
       terminationGracePeriodSeconds: 60
       containers:
         - name: envoy
-          image: docker.io/envoyproxy/envoy:distroless-v1.33.2   # la del chart v0.11.0
+          image: docker.io/envoyproxy/envoy:distroless-v1.33.2   # same as chart v0.11.0
           imagePullPolicy: IfNotPresent
           command: ["envoy"]
           args:
@@ -45,7 +45,7 @@ spec:
             - envoy-sidecar
             - --log-level
             - warn
-            - --concurrency      # sin esto Envoy lanza un worker por hilo de la CPU
+            - --concurrency      # without this Envoy starts one worker per CPU thread
             - "2"
             - --drain-strategy
             - immediate
@@ -77,7 +77,7 @@ spec:
               readOnly: true
 
         - name: epp
-          image: ghcr.io/llm-d/llm-d-router-endpoint-picker   # tag en kustomization.yaml
+          image: ghcr.io/llm-d/llm-d-router-endpoint-picker   # tag set in kustomization.yaml
           imagePullPolicy: IfNotPresent
           args:
             - --pool-name=qwen3-8b
@@ -86,9 +86,9 @@ spec:
             - --config-file=/config/epp-config.yaml
             - --grpc-health-port=9003
             - --zap-encoder=json
-            - --v=2                          # 3-4 para ver el porqué de cada decisión
+            - --v=2                          # 3-4 to see the reasoning behind each decision
             - --tracing=false
-            - --metrics-endpoint-auth=false  # /metrics sin token: curl y Prometheus fácil (lab)
+            - --metrics-endpoint-auth=false  # /metrics without a token: easy curl and Prometheus (lab)
           env:
             - name: NAMESPACE
               valueFrom:
@@ -118,8 +118,8 @@ spec:
             periodSeconds: 2
           lifecycle:
             preStop:
-              sleep:              # el chart usa 'sh -c sleep 5', pero la imagen es distroless
-                seconds: 5        # (sin shell); la acción sleep nativa va bien en K8s 1.35
+              sleep:              # the chart uses 'sh -c sleep 5', but the image is distroless
+                seconds: 5        # (no shell); the native sleep action works on K8s 1.35
           resources:
             requests:
               cpu: 500m
@@ -133,7 +133,7 @@ spec:
       volumes:
         - name: envoy-config
           configMap:
-            name: qwen3-8b-envoy        # configMapGenerator: cambia el hash → rollout solo
+            name: qwen3-8b-envoy        # configMapGenerator: hash changes → automatic rollout
         - name: epp-config
           configMap:
-            name: qwen3-8b-epp-config   # idem
+            name: qwen3-8b-epp-config   # same

@@ -7,16 +7,16 @@ resources:
   - deployment.yaml
   - service.yaml
 
-# Misma versión que el vLLM del host: los flags se validaron contra ella.
-# Compruébala con:  /opt/vllm/bin/vllm --version   → newTag: v<esa versión>
+# Same version as the host's vLLM: the flags were validated against it.
+# Check it with:  /opt/vllm/bin/vllm --version   → newTag: v<that version>
 images:
   - name: vllm/vllm-openai
     newTag: v0.30.0
 
-# La plantilla parcheada (thinking medium, preserve_thinking chain, "high"→medium)
-# que generó y verificó serve-vllm-qwen38.sh. Cópiala a esta carpeta:
+# The patched template (thinking medium, preserve_thinking chain, "high"→medium)
+# that serve-vllm-qwen38.sh generated and verified. Copy it into this folder:
 #   cp ~/.cache/vllm-qwen38/chat_template.think.medium.chain.jinja chat_template.jinja
-# Si la cambias, kustomize genera otro ConfigMap y el Deployment se reinicia solo.
+# If you change it, kustomize generates a new ConfigMap and the Deployment restarts on its own.
 configMapGenerator:
   - name: vllm-qwen38-chat-template
     namespace: llm
