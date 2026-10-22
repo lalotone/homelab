@@ -1,0 +1,57 @@
+# Voice assistant on the GPU: TTS (Qwen3-TTS) on a GPU share instead of the CPU, and the LLM pointed at the
+# llama.cpp 27B (k8s/llama.cpp/qwen38-27b) instead of vLLM.
+#
+#   kubectl apply -k .        instead of  kubectl apply -k ../deploy
+#
+# Needs the llama.cpp 27B to be the brain (vLLM scaled to 0) and time-slicing enabled. Why the GPU only works
+# next to llama.cpp (and not next to vLLM): ../../llama.cpp/qwen38-27b/README.md.
+#
+# LLM_BASE_URL is llama.cpp's ClusterIP, pinned in ../../llama.cpp/qwen38-27b/service.yaml. Not a DNS name: pods on
+# heavy1 can't reach CoreDNS (llama.cpp runs on heavy1 too, so it stays local — same as vLLM's did).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../deploy
+
+# :cuda-fast = the ../deploy image plus faster-qwen3-tts (CUDA-graph TTS, ~4x faster: 0.72x -> 2.8x realtime on
+# the 5060 Ti). A thin layer on top of the :cuda digest, so heavy1 only pulls ~58 MB.
+# :cuda-tools = :cuda-fast + the LLM tools (time, weather, news, math, Wikipedia): a 41 kB code-only layer.
+# Rollback: `kubectl -n voice rollout undo deploy/esp32-homeai-api` (back to the :cuda digest), then delete this block.
+# TTS_ENGINE=qwen switches this same image to plain qwen_tts (untested).
+images:
+  - name: fooser/esp32-homeai-api   # the name after ../deploy's own images: rewrite
+    digest: sha256:ea418bdca97eeff8596b8ab9aedb57da5c26b9ff9ee1a0093283d161312af233  # :cuda-tools
+
+patches:
+  - target:
+      kind: Deployment
+      name: esp32-homeai-api
+    patch: |-
+      # Strategic merge: env entries match by `name`, so these two update in place and the rest stay put.
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: esp32-homeai-api
+        namespace: voice
+      spec:
+        template:
+          spec:
+            runtimeClassName: nvidia      # created by the GPU Operator
+            containers:
+              - name: api
+                env:
+                  # llama.cpp's pinned ClusterIP (see the header). Not a DNS name.
+                  - name: LLM_BASE_URL
+                    value: "http://10.105.13.250:8000/v1"
+                  - name: TTS_DEVICE
+                    value: cuda
+                  - name: WHISPER_DEVICE        # Whisper small: 1.5 s on the CPU -> 0.1 s here (measured), <1 GB VRAM
+                    value: cuda
+                  - name: WHISPER_COMPUTE_TYPE
+                    value: float16
+                resources:
+                  requests:
+                    nvidia.com/gpu: "1"   # one of the 4 time-sliced shares of a card (compute only; memory is per-card)
+                  limits:
+                    nvidia.com/gpu: "1"

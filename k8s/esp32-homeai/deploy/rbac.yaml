@@ -1,0 +1,32 @@
+# Read-only cluster view for the voice assistant's homelab status tool ("Rocky, how's the cluster?").
+# Only get/list on nodes, pods and deployments: no secrets, no exec, no nodes/proxy, nothing writable.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: esp32-homeai-api
+  namespace: voice
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: esp32-homeai-homelab-viewer
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "pods"]
+    verbs: ["get", "list"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: esp32-homeai-homelab-viewer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: esp32-homeai-homelab-viewer
+subjects:
+  - kind: ServiceAccount
+    name: esp32-homeai-api
+    namespace: voice

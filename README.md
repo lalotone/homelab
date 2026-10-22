@@ -55,6 +55,8 @@ flowchart LR
 |---|---|---|---|
 | [GPU platform](k8s/nvidia-operator/) | GPU scheduling on Kubernetes using the host driver, with a `RuntimeClass` and device plugin | NVIDIA GPU Operator, Helm | ✅ Running |
 | [LLM serving](k8s/vllm/qwen38-27b-single/) | A 27B coding model split across two consumer GPUs with tensor parallelism | vLLM, NVFP4, MTP speculative decoding | ✅ Running |
+| [LLM serving (llama.cpp)](k8s/llama.cpp/qwen38-27b/) | The 27B on llama.cpp instead of vLLM: leaves ~6-7 GiB/GPU so the voice's TTS can run on a GPU | llama.cpp, GGUF Q4_K_XL, tensor-split | 🧪 Alternative |
+| [Voice assistant](k8s/esp32-homeai/) | Backend for an ESP32 smart speaker: speech-to-text, the in-cluster LLM, and a cloned movie-character voice (on a GPU share next to llama.cpp, or on the CPU) | faster-whisper, Qwen3-TTS 0.6B, FastAPI | ✅ Running |
 | [Cache-aware inference routing](k8s/vllm/qwen-llmd/) | Multi-replica serving with prefix-cache-aware load balancing, set up for A/B testing against round-robin | llm-d, Envoy `ext_proc`, Gateway API Inference Extension | 🧪 Experiment |
 | DNS & ad blocking | Network-wide DNS filtering | Pi-hole | 📋 Planned |
 | GitOps | Continuous reconciliation of this repository into the cluster | Argo CD | 📋 Planned |
@@ -73,8 +75,15 @@ flowchart LR
 .
 └── k8s/
     ├── nvidia-operator/          GPU Operator installation
+    │   └── time-slicing/         4 shares per GPU, so small GPU pods fit next to vLLM
+    ├── esp32-homeai/             ESP32 voice assistant API (Whisper + LLM + Qwen3-TTS voice)
+    │   ├── deploy/               the API on the CPU (Whisper + vLLM 27B + Qwen3-TTS)
+    │   └── with-gpu/             overlay: TTS on a GPU share, LLM pointed at llama.cpp
+    ├── llama.cpp/
+    │   └── qwen38-27b/           27B GGUF on llama.cpp (tensor-split): the 27B brain that leaves room for a GPU voice
     └── vllm/
         ├── qwen38-27b-single/    single 27B model, TP=2 across both GPUs
+        │   └── with-voice/       overlay: 16k context, leaves ~3.2 GiB/card for the voice assistant
         └── qwen-llmd/
             ├── model/            2× Qwen3-8B replicas, one per GPU
             └── llmd/             llm-d router, CRDs, calibration job, docs

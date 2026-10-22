@@ -1,0 +1,163 @@
+# ESP32 voice assistant API on heavy1: Whisper STT + Rocky's voice (Qwen3-TTS) on heavy1's CPU,
+# LLM = the vLLM Qwen3.8-27B in this cluster (k8s/vllm/qwen38-27b-single), reached in-cluster.
+#
+# CPU on purpose. The GPUs don't have room: vLLM at its full config leaves ~0.6 GiB per card, and even the with-voice
+# overlay (16k context) left only ~2.2 GiB measured, below Qwen3-TTS's ~2.6-3.25 GiB. The image is the CUDA build;
+# CUDA torch runs on the CPU too. GPU mode: README.md.
+#
+# Paths on heavy1:
+#   /mnt/esp32-homeai/rocky   Rocky's voice reference: rocky_ref.wav + rocky_ref.txt (private, film audio;
+#                             copy it from ~/src/repos/esp32-homeai/api/rocky). The pod won't start without it.
+#   /mnt/esp32-homeai/hf      Hugging Face cache (Whisper small + Qwen3-TTS 0.6B Base, ~2.9 GB). Pre-copied (rsync from a
+#                             machine that has them: ~/.cache/huggingface/hub/models--* -> .../hf/hub/); HF_HUB_OFFLINE=1
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: esp32-homeai-api
+  namespace: voice
+  labels:
+    app: esp32-homeai-api
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate                      # one model copy per GPU budget: never two pods at once
+  selector:
+    matchLabels:
+      app: esp32-homeai-api
+  template:
+    metadata:
+      labels:
+        app: esp32-homeai-api
+    spec:
+      serviceAccountName: esp32-homeai-api   # read-only cluster view for the homelab tool (rbac.yaml)
+      nodeSelector:
+        kubernetes.io/hostname: heavy1  # voice reference and caches live on its disk
+      tolerations:
+        - key: nvidia.com/gpu           # heavy1 is tainted for GPU workloads; tolerate it to run there anyway
+          operator: Exists
+          effect: NoSchedule
+      # Public DNS instead of CoreDNS: pods on heavy1 can't reach CoreDNS on k8s-master (cross-node pod traffic broken
+      # since the 2026-10-20 reboot), but direct egress works, and the LLM tools (weather, news, Wikipedia) need names
+      # resolved. In-cluster targets are reached by ClusterIP anyway. Drop this once cross-node traffic is fixed.
+      dnsPolicy: "None"
+      dnsConfig:
+        nameservers:
+          - 1.1.1.1
+          - 8.8.8.8
+      securityContext:
+        runAsUser: 1000                 # the image's "app" user; the hostPath dirs must be writable by uid 1000
+        fsGroup: 1000
+      containers:
+        - name: api
+          image: esp32-homeai-api       # tag/registry in kustomization.yaml
+          imagePullPolicy: IfNotPresent
+          # Where home is (weather/time defaults, local news, Whisper hints): example values from kustomization.yaml,
+          # overridden by the real ones in the hand-made ConfigMap "esp32-homeai-home" (never committed; see
+          # README "Home location"). In envFrom the last source wins for a duplicated key.
+          envFrom:
+            - configMapRef:
+                name: esp32-homeai-home-defaults
+            - configMapRef:
+                name: esp32-homeai-home
+                optional: true
+          env:
+            # vLLM's ClusterIP, not its DNS name: pods on heavy1 can't reach CoreDNS on k8s-master (cross-node pod
+            # traffic is broken since the 2026-10-20 reboot). vLLM runs on heavy1 too, so this path stays local.
+            # Once that's fixed: http://vllm-qwen38.llm.svc.cluster.local:8000/v1 (survives the Service being recreated).
+            - name: LLM_BASE_URL
+              value: http://10.100.199.252:8000/v1
+            - name: LLM_MODEL
+              value: qwen3.8-27b
+            - name: LLM_ENABLE_THINKING # ~1 s replies instead of 4-9 s, same answers on short voice questions
+              value: "false"
+            - name: TTS_DEVICE
+              value: cpu
+            - name: WHISPER_DEVICE      # Whisper small on the 5600G: ~1-2 s for a 5 s clip
+              value: cpu
+            - name: WHISPER_COMPUTE_TYPE
+              value: int8
+            - name: WHISPER_MODEL
+              value: small
+            - name: WHISPER_LANGUAGE
+              value: en
+            - name: OMP_NUM_THREADS     # torch threads = the CPU limit (default would be all 12 host threads,
+              value: "10"               # and the extra 2 would only get throttled)
+            - name: OMP_DYNAMIC         # fixed thread counts: don't let OpenMP/MKL shrink the pool at runtime
+              value: "FALSE"
+            - name: MKL_NUM_THREADS
+              value: "10"
+            - name: MKL_DYNAMIC
+              value: "FALSE"
+            - name: STATE_DIR           # timers/reminders (alerts.json), on heavy1's disk so restarts keep them
+              value: /state
+            # Homelab tool: GPU metrics from the GPU Operator's DCGM exporter (ClusterIP, local to heavy1: not a DNS
+            # name, CoreDNS isn't reachable) and heavy1's disk, read through the hf-cache mount (same filesystem).
+            - name: HOMELAB_DCGM_URL
+              value: http://10.106.203.228:9400/metrics
+            - name: HOMELAB_DISK_PATH
+              value: /cache/hf
+            # "Send it to my phone": a Telegram bot. Secret created by hand (never in this repo), optional so the
+            # API runs without it -- see README "Telegram".
+            - name: TELEGRAM_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: telegram-bot
+                  key: token
+                  optional: true
+            - name: TELEGRAM_CHAT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: telegram-bot
+                  key: chat_id
+                  optional: true
+            - name: HF_HUB_OFFLINE      # models are pre-copied to /mnt/esp32-homeai/hf (no internet from pods; like vLLM)
+              value: "1"
+          ports:
+            - name: http
+              containerPort: 8000
+          resources:
+            requests:
+              cpu: "6"
+              memory: 6Gi                       # fp32 voice model ~4.5 GB resident, peaks ~6 GB
+            limits:
+              cpu: "10"                         # up to 10 of the 5600G's 12 threads; 2 stay free for vLLM + system
+              memory: 12Gi
+          startupProbe:                         # first start downloads ~2.5 GB of models, then loads the voice
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 120               # 20 min
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 10                  # /talk work runs in a threadpool; /health stays responsive
+            failureThreshold: 5
+          volumeMounts:
+            - name: voice
+              mountPath: /app/rocky
+              readOnly: true
+            - name: hf-cache
+              mountPath: /cache/hf
+            - name: state
+              mountPath: /state
+      volumes:
+        - name: voice
+          hostPath:
+            path: /mnt/esp32-homeai/rocky
+            type: Directory                     # must exist: fail fast instead of starting without a voice
+        - name: hf-cache
+          hostPath:
+            path: /mnt/esp32-homeai/hf
+            type: Directory                     # pre-created and owned by uid 1000 (kubelet would create it as root)
+        - name: state
+          hostPath:
+            path: /mnt/esp32-homeai/state
+            type: Directory                     # same: pre-created, owned by uid 1000

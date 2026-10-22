@@ -1,0 +1,17 @@
+# ESP32 smart speaker -> http://<heavy1 LAN IP>:30880/talk   (set in the board's config portal)
+apiVersion: v1
+kind: Service
+metadata:
+  name: esp32-homeai-api
+  namespace: voice
+  labels:
+    app: esp32-homeai-api
+spec:
+  type: NodePort
+  selector:
+    app: esp32-homeai-api
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+      nodePort: 30880

@@ -1,0 +1,33 @@
+# kubectl apply -k .
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Example home (Madrid). The real one goes in a ConfigMap "esp32-homeai-home" made by hand (README "Home location"),
+# which wins over these. The generator's hash suffix rolls the pod when these change.
+configMapGenerator:
+  - name: esp32-homeai-home-defaults
+    namespace: voice
+    literals:
+      - HOME_NAME=Madrid
+      - HOME_LAT=40.4168
+      - HOME_LON=-3.7038
+      - HOME_TZ=Europe/Madrid
+      - LOCAL_NEWS_NAME=Madrid (in Spanish)
+      - LOCAL_NEWS_FEEDS=https://www.20minutos.es/rss/madrid/
+      # Local names an English Whisper mishears ("Zaragoza" -> "Maragona"): add the ones around home.
+      - WHISPER_PROMPT=Rocky. Madrid, Alcalá, Getafe, Móstoles, Leganés, Toledo, Segovia, Barcelona, Valencia.
+
+resources:
+  - namespace.yaml
+  - rbac.yaml
+  - deployment.yaml
+  - service.yaml
+
+# Built from ~/src/repos/esp32-homeai/api: docker build -t fooser/esp32-homeai-api:cuda --build-arg TORCH=cu128 .
+# then: docker push fooser/esp32-homeai-api:cuda
+# "cuda" is a moving tag and the pod uses IfNotPresent, so heavy1 keeps whatever it pulled first. After each push,
+# pin the digest instead (it forces the new image):  digest: sha256:...   (from `docker push` output)
+images:
+  - name: esp32-homeai-api
+    newName: fooser/esp32-homeai-api
+    digest: sha256:88a3d4212644ab49533735db3da015b87d294c37f159db3870bdd2cbf0117296  # :cuda, plain qwen_tts
