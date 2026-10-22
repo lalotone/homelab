@@ -1,0 +1,21 @@
+# OpenCode / clients: http://<heavy1 IP, LAN or Tailscale>:30801/v1
+# (30801, not vLLM's 30800: the two engines are Mode A alternatives and are swapped, not stacked)
+apiVersion: v1
+kind: Service
+metadata:
+  name: llama-qwen38
+  labels:
+    app: llama-qwen38
+spec:
+  type: NodePort
+  # Fixed ClusterIP: pods on heavy1 can't reach CoreDNS, so the voice assistant (k8s/esp32-homeai/with-gpu) dials
+  # this IP directly. Pinned so it survives the Service being recreated. Must stay inside the service CIDR
+  # (10.96.0.0/12); clusterIP is immutable, so changing it means deleting the Service first.
+  clusterIP: 10.105.13.250
+  selector:
+    app: llama-qwen38
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+      nodePort: 30801

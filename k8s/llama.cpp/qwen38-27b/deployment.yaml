@@ -1,0 +1,115 @@
+# Qwen3.8-27B (GGUF, Q4_K_XL) on heavy1 with llama.cpp, split across the 2× RTX 5060 Ti.
+#
+# This is the Mode A alternative to k8s/vllm/qwen38-27b-single. Both engines need both
+# physical cards, so only one can run at a time:
+#   kubectl -n llm scale deploy/vllm-qwen38  --replicas=0   # down vLLM
+#   kubectl apply -k .                                      # up llama.cpp
+#   kubectl -n llm scale deploy/llama-qwen38 --replicas=0   # down llama.cpp
+#   kubectl -n llm scale deploy/vllm-qwen38  --replicas=1   # back to vLLM
+#
+# Why llama.cpp and not vLLM here: vLLM grabs ~0.91 × 16 GB of each card (leaving ~1 GB),
+# which is why the voice assistant (k8s/esp32-homeai) had to run its TTS on the CPU.
+# llama.cpp only allocates weights + the KV cache you ask for, so it leaves ~6-7 GB/card
+# free — enough for the voice's Qwen3-TTS to move onto a GPU share (see k8s/esp32-homeai/with-gpu).
+#
+# Served as --alias qwen3.8-27b, so clients that used vLLM's model name keep working
+# unchanged; only the base URL (service/ClusterIP) moves.
+#
+# Path on heavy1:
+#   /mnt/models/Qwen3.8-27B-UD-Q4_K_XL.gguf   the model (~16-17 GB, ~4.5 bits/weight).
+#                                             Mounted read-only at /models.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama-qwen38
+  labels:
+    app: llama-qwen38
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate                      # exclusive GPUs: never two pods at once
+  selector:
+    matchLabels:
+      app: llama-qwen38
+  template:
+    metadata:
+      labels:
+        app: llama-qwen38
+    spec:
+      runtimeClassName: nvidia          # created by the GPU Operator
+      nodeSelector:
+        kubernetes.io/hostname: heavy1  # the GGUF lives on its disk
+      tolerations:
+        - key: nvidia.com/gpu           # taint reserving heavy1's GPUs
+          operator: Exists
+          effect: NoSchedule
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: llama
+          image: ghcr.io/ggml-org/llama.cpp   # :server-cuda tag set in kustomization.yaml (ENTRYPOINT is llama-server)
+          args:
+            - -m
+            - /models/Qwen3.8-27B-UD-Q4_K_XL.gguf
+            - --n-gpu-layers
+            - "9999"                    # all layers on the GPUs
+            - --tensor-split
+            - "1,1"                     # even split across the two cards
+            - --main-gpu
+            - "0"
+            - --ctx-size
+            - "16384"                   # same working context as vLLM's with-voice overlay
+            - --cache-type-k
+            - q8_0                      # quantized KV cache: ~half the memory of f16
+            - --cache-type-v
+            - q8_0
+            - --jinja                   # use the model's own chat template from the GGUF
+            - --alias
+            - qwen3.8-27b               # served model name (matches vLLM's, so clients are unchanged)
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8000"
+          ports:
+            - name: http
+              containerPort: 8000
+          resources:
+            requests:
+              cpu: "2"
+              memory: 8Gi
+              nvidia.com/gpu: 2
+            limits:
+              memory: 16Gi
+              nvidia.com/gpu: 2
+          startupProbe:                         # 1st start: read the 16 GB GGUF from disk + load to the GPUs
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 120               # 20 min
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 5
+          volumeMounts:
+            - name: shm                         # the default 64 MB /dev/shm isn't enough for CUDA workloads
+              mountPath: /dev/shm
+            - name: model
+              mountPath: /models
+              readOnly: true
+      volumes:
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 4Gi
+        - name: model
+          hostPath:
+            path: /mnt/models
+            type: Directory                     # must exist: fail fast instead of starting with no model

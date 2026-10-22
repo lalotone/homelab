@@ -1,0 +1,27 @@
+# Mode A (llama.cpp brain):  kubectl apply -k .
+#   Qwen3.8-27B GGUF across both GPUs -> http://<heavy1>:30801/v1  (inside: llama-qwen38.llm:8000)
+#
+# The 27B can only be served by one engine at a time (both need both cards). Swap, don't stack:
+#   kubectl -n llm scale deploy/vllm-qwen38 --replicas=0      # down the vLLM 27B first
+#   kubectl apply -k .
+# Back to vLLM:  kubectl -n llm scale deploy/llama-qwen38 --replicas=0
+#                kubectl -n llm scale deploy/vllm-qwen38  --replicas=1
+#
+# No Namespace on purpose: 'llm' is created by k8s/vllm/qwen38-27b-single/deploy. That way a
+# 'kubectl delete -k' here doesn't take the whole namespace with it.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: llm
+
+resources:
+  - deployment.yaml
+  - service.yaml
+
+# server-cuda, NOT server: the plain :server tag is the CPU-only build (it logs "no usable GPU found" and
+# silently ignores --n-gpu-layers/--tensor-split). server-cuda is still a moving tag; after a good start, pin
+# the exact build the same way the vLLM kustomization pins its version: newTag: server-cuda-b<NNNN>
+# (tags listed at https://github.com/ggml-org/llama.cpp/pkgs/container/llama.cpp)
+images:
+  - name: ghcr.io/ggml-org/llama.cpp
+    newTag: server-cuda
