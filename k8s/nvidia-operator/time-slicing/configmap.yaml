@@ -1,0 +1,24 @@
+# GPU time-slicing for the NVIDIA device plugin: each physical GPU is advertised as 4 nvidia.com/gpu.
+# Activated by pointing the ClusterPolicy at it (devicePlugin.config, see enable_time_slicing.sh).
+#
+# renameByDefault: false          keep the resource name nvidia.com/gpu, so existing requests (vLLM's 2) stay valid
+# failRequestsGreaterThanOne: false  vLLM's TP=2 pod asks for 2. With true it would be rejected
+#
+# Time-slicing shares compute, NOT memory: every pod on a card must fit in its 16 GB together.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: time-slicing-config
+  namespace: gpu-operator
+data:
+  any: |-
+    version: v1
+    flags:
+      migStrategy: none
+    sharing:
+      timeSlicing:
+        renameByDefault: false
+        failRequestsGreaterThanOne: false
+        resources:
+          - name: nvidia.com/gpu
+            replicas: 4

@@ -1,0 +1,6 @@
+# kubectl apply -k .   (namespace gpu-operator is owned by the Helm release, so it's not created here)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - configmap.yaml
