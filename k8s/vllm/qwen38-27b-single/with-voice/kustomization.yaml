@@ -1,0 +1,41 @@
+# vLLM squeezed to leave one GPU share's worth of memory for the voice assistant (k8s/esp32-homeai).
+#   kubectl apply -k .        instead of  kubectl apply -k ../deploy
+# Same model, same flags, except the four below. Budget and trade-offs: README.md in this folder.
+#
+# The JSON patches "test" each arg before replacing it: if ../deploy/deployment.yaml reorders its args,
+# the build fails instead of silently patching the wrong flag.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../deploy
+
+patches:
+  - target:
+      kind: Deployment
+      name: vllm-qwen38
+    patch: |-
+      - op: test
+        path: /spec/template/spec/containers/0/args/5
+        value: --gpu-memory-utilization=0.91
+      - op: replace
+        path: /spec/template/spec/containers/0/args/5
+        value: --gpu-memory-utilization=0.77
+      - op: test
+        path: /spec/template/spec/containers/0/args/7
+        value: --max-model-len=98304
+      - op: replace
+        path: /spec/template/spec/containers/0/args/7
+        value: --max-model-len=16384
+      - op: test
+        path: /spec/template/spec/containers/0/args/9
+        value: --max-num-batched-tokens=2048
+      - op: replace
+        path: /spec/template/spec/containers/0/args/9
+        value: --max-num-batched-tokens=512
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          # Budget CUDA graphs at their measured size (0.17 GiB) instead of vLLM's 0.77 GiB estimate.
+          name: VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS
+          value: "0"
