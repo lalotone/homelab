@@ -80,6 +80,11 @@ spec:
               value: small
             - name: WHISPER_LANGUAGE
               value: en
+            # The silence gate measures the whole recording (lead-in silence included): real speech through the
+            # board's mics averages -45..-48 dBFS, so the -40 default threw questions away. -55 matches the board's own
+            # VAD start level (int16 RMS 60), so whatever the board heard as speech gets through.
+            - name: SILENCE_THRESHOLD_DBFS
+              value: "-55"
             - name: OMP_NUM_THREADS     # torch threads = the CPU limit (default would be all 12 host threads,
               value: "10"               # and the extra 2 would only get throttled)
             - name: OMP_DYNAMIC         # fixed thread counts: don't let OpenMP/MKL shrink the pool at runtime

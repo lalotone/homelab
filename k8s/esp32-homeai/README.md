@@ -1,19 +1,28 @@
 # esp32-homeai
 
-The API behind the ESP32 smart speaker (`~/src/repos/esp32-homeai`): the board POSTs a WAV to `/talk`, and the pod
-runs Whisper STT → the in-cluster vLLM (Qwen3.8-27B) → Rocky's voice (Qwen3-TTS 0.6B, on the CPU), then answers with a
-16 kHz WAV.
+The API behind the ESP32 smart speaker ([esp32-homeai](https://github.com/lalotone/esp32-homeai)): the board POSTs a
+WAV to `/talk`, and the pod runs Whisper STT → the in-cluster 27B LLM with tools → Rocky's voice (Qwen3-TTS 0.6B), then
+answers with a 16 kHz WAV. While idle the board polls `/pending` for alarms, timers and reminders.
 
 ```
-ESP32 (home WiFi) ──► heavy1:30880 (NodePort) ──► esp32-homeai-api (ns voice, CPU)
-                                                        └──► vllm-qwen38.llm:8000 (in-cluster)
+ESP32 (home WiFi) ──► heavy1:30880 (NodePort) ──► esp32-homeai-api (ns voice, GPU share: Whisper + TTS)
+                                                        ├──► llama-qwen38.llm:8000 (in-cluster 27B)
+                                                        └──► internet: weather, news, Wikipedia, Shazam, Telegram
 ```
+
+Two ways to run it:
+
+| | Brain | Voice | Answer time |
+|---|---|---|---|
+| [`with-gpu/`](with-gpu/) (**the intended setup**) | llama.cpp 27B, vLLM scaled to 0 | Whisper + Qwen3-TTS on a time-sliced GPU share | ~4-6 s |
+| `deploy/` (CPU fallback) | vLLM 27B | on heavy1's CPU | ~48 s for 3 sentences |
 
 ## Before the first apply
 
-1. **Runs on heavy1's CPU** (Ryzen 5 5600G): the GPUs don't have room for the voice next to vLLM (vLLM at its full
-   config leaves ~0.6 GiB/card, and even the [`with-voice`](../vllm/qwen38-27b-single/with-voice/) overlay left only
-   ~2.2 GiB measured, below Qwen3-TTS's ~2.6-3.25 GiB). Measured: ~48 s for a 3-sentence answer (6 s of speech).
+1. **Pick the mode.** The GPU voice only fits next to llama.cpp, not vLLM (vLLM at its full config leaves ~0.6 GiB per
+   card, and even the [`with-voice`](../vllm/qwen38-27b-single/with-voice/) overlay left only ~2.2 GiB, below
+   Qwen3-TTS's ~2.6-3.25 GiB). For `with-gpu`: enable [time-slicing](../nvidia-operator/time-slicing/), deploy
+   [llama.cpp](../llama.cpp/qwen38-27b/) and scale vLLM to 0.
 2. **Host folders**, owned by the image's uid 1000:
 
    ```bash
@@ -30,24 +39,33 @@ ESP32 (home WiFi) ──► heavy1:30880 (NodePort) ──► esp32-homeai-api (
             ~/.cache/huggingface/hub/models--Qwen--Qwen3-TTS-12Hz-0.6B-Base heavy1:/mnt/esp32-homeai/hf/hub/
    ```
 
-4. **Image**: `fooser/esp32-homeai-api:cuda` (public on Docker Hub; CUDA torch runs on the CPU too). It holds only
-    code: no voice reference, no `.env`, no model weights (verified). After a re-push, pin the new digest in
-    `deploy/kustomization.yaml`.
-5. **Disk**: the kubelet evicts pods below ~33 GB free on heavy1 (15% of `/`). The image (~13 GB unpacked) plus models
+4. **Images** (public on Docker Hub; they hold only code: no voice reference, no `.env`, no tokens, no model weights):
+   - `deploy/` pins `fooser/esp32-homeai-api:cuda` (the full image; CUDA torch runs on the CPU too).
+   - `with-gpu/` pins `:cuda-tools`, built from the esp32-homeai repo with `api/Dockerfile.thin`: its `app/` plus the
+     newer deps as one ~75 MB layer on top of `:cuda`, so heavy1 never pulls another ~12 GB. To update:
+
+     ```bash
+     cd ~/src/repos/esp32-homeai/api
+     docker build -f Dockerfile.thin -t fooser/esp32-homeai-api:cuda-tools . && docker push fooser/esp32-homeai-api:cuda-tools
+     # then put the pushed digest in with-gpu/kustomization.yaml (the line marked "# :cuda-tools") and apply
+     ```
+5. **Optional, made by hand and never committed**: your real home location ([below](#home-location)) and the
+   Telegram bot ([below](#telegram-send-it-to-my-phone)). Without them Rocky uses the Madrid example and the phone
+   tools say "not set up".
+6. **Disk**: the kubelet evicts pods below ~33 GB free on heavy1 (15% of `/`). The image (~13 GB unpacked) plus models
    (~3 GB) must leave that much. Running short evicted vLLM too on 2026-10-20.
 
 ## Deploy
 
 ```bash
-kubectl kustomize deploy            # review
-kubectl apply -k deploy
+kubectl kustomize with-gpu          # review (or deploy/ for the CPU fallback)
+kubectl apply -k with-gpu
 kubectl -n voice logs -f deploy/esp32-homeai-api
 curl http://<heavy1 LAN IP>:30880/health
 ```
 
-To run Rocky's voice **on the GPU** (needs the llama.cpp 27B as the brain, vLLM scaled to 0), use the
-[`with-gpu`](with-gpu/) overlay instead: `kubectl apply -k with-gpu`. That's the intended setup; `deploy` alone is the
-CPU fallback for when vLLM is the brain.
+Rollback after a bad image: `kubectl -n voice rollout undo deploy/esp32-homeai-api`, then restore the previous digest
+in `with-gpu/kustomization.yaml` so the next apply doesn't bring it back.
 
 Then set the board's assistant URL to `http://<heavy1 LAN IP>:30880/talk` in its config portal.
 
@@ -75,9 +93,17 @@ The API gives the LLM function-calling tools (`~/src/repos/esp32-homeai/api/app/
 | `lookup_wikipedia` | Wikipedia (en/es) summaries |
 | `get_homelab_status` | Kubernetes API (read-only ServiceAccount, `deploy/rbac.yaml`: get/list nodes, pods, deployments), DCGM exporter (`HOMELAB_DCGM_URL`), heavy1's disk |
 | `set_timer` / `set_reminder` / `list_alerts` / `cancel_alert` | kept in `/mnt/esp32-homeai/state/alerts.json`; the speaker polls `GET /pending` every 3 s and plays Rocky's announcement (green LED) |
+| `set_alarm` (once / daily / weekdays / weekends) | same file; rings with the morning briefing, composed ~2 min ahead so `/pending` answers instantly |
+| shopping list (add / remove / read / clear / undo) | `/mnt/esp32-homeai/state/shopping.json` |
+| `get_morning_briefing` | "good morning": weather, today's reminders, 2 world news, shopping list size |
+| `identify_song` | Shazam via shazamio (unofficial, no key); the follow-up recording is the music sample; matches also go to Telegram |
+| `send_to_phone` / `send_shopping_list` | Telegram bot, one-way, only to `TELEGRAM_CHAT_ID` |
 
 A question that needs a tool costs one extra LLM round (~2-4 s). The last 4 exchanges (tool calls included, or the model starts claiming "timer set" without calling the tool) are kept for 5 minutes, so follow-ups work (`HISTORY_TURNS`, `HISTORY_TTL_S`). `TOOLS_ENABLED=false` turns them off. `WHISPER_PROMPT`
-lists local names so the English Whisper doesn't mishear them ("Zaragoza" as "Maragona").
+lists local names so the English Whisper doesn't mishear them ("Zaragoza" as "Maragona"). An action request that ends
+without a tool call is nudged once and never reported as done (`app/llm.py`): the model otherwise often says "alarm
+set" without setting anything. `SILENCE_THRESHOLD_DBFS=-55`: real speech through the board averages -45..-48 dBFS over
+the whole clip, so the old -40 threw questions away.
 
 ## Home location
 
@@ -110,8 +136,9 @@ Without the Secret the API runs normally and the phone tools answer "not set up"
 
 ## Design notes
 
-- **LLM in-cluster**: `LLM_BASE_URL` is the vLLM Service's **ClusterIP** — not its DNS name, because pods on
-  heavy1 can't reach CoreDNS (see the workaround above) — so there's no NodePort or Tailscale hop.
+- **LLM in-cluster**: `LLM_BASE_URL` is a **ClusterIP** (llama.cpp's pinned `10.105.13.250` in `with-gpu`, vLLM's in
+  `deploy`) — not a DNS name, because pods on heavy1 can't reach CoreDNS (see the workaround above) — so there's no
+  NodePort or Tailscale hop.
   `LLM_ENABLE_THINKING=false` gives ~1 s replies.
 - **Voice choice** (Rocky's "golden" reference) was made by ear in A/B listening. Change it only after listening tests.
 - **Recreate strategy**: never two copies of the models loaded at once.
