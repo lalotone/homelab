@@ -21,7 +21,7 @@ resources:
 # TTS_ENGINE=qwen switches this same image to plain qwen_tts (untested).
 images:
   - name: fooser/esp32-homeai-api   # the name after ../deploy's own images: rewrite
-    digest: sha256:79fa431ca015c125f38978ea1f28fbc69e4cca390599f678c8f02781c6507edb  # :cuda-tools
+    digest: sha256:1dff340305df33f691fc8832ee0bcfec6f984e16326e54fc45d45ce275b95b91  # :cuda-tools
 
 patches:
   - target:

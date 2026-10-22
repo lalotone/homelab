@@ -97,7 +97,8 @@ The API gives the LLM function-calling tools (`~/src/repos/esp32-homeai/api/app/
 | shopping list (add / remove / read / clear / undo) | `/mnt/esp32-homeai/state/shopping.json` |
 | `get_morning_briefing` | "good morning": weather, today's reminders, 2 world news, shopping list size |
 | `identify_song` | Shazam via shazamio (unofficial, no key); the follow-up recording is the music sample; matches also go to Telegram |
-| `send_to_phone` / `send_shopping_list` | Telegram bot, one-way, only to `TELEGRAM_CHAT_ID` |
+| `send_to_phone` / `send_shopping_list` | Telegram bot, only to `TELEGRAM_CHAT_ID` |
+| photo inbox + `look_at_last_photo` | photos you send the bot, answered by llama.cpp's vision (`TELEGRAM_PHOTOS=true`, guardrails below) |
 
 A question that needs a tool costs one extra LLM round (~2-4 s). The last 4 exchanges (tool calls included, or the model starts claiming "timer set" without calling the tool) are kept for 5 minutes, so follow-ups work (`HISTORY_TURNS`, `HISTORY_TTL_S`). `TOOLS_ENABLED=false` turns them off. `WHISPER_PROMPT`
 lists local names so the English Whisper doesn't mishear them ("Zaragoza" as "Maragona"). An action request that ends
@@ -133,6 +134,12 @@ kubectl -n voice rollout restart deploy/esp32-homeai-api
 ```
 
 Without the Secret the API runs normally and the phone tools answer "not set up".
+
+**Photos (`TELEGRAM_PHOTOS=true` here):** you can send the bot a photo and Rocky answers in the chat, using llama.cpp's
+vision ([`--mmproj`](../llama.cpp/qwen38-27b/README.md#vision)); the speaker can be asked about it for 10 minutes.
+It's the only inbound path to the AI, so: only your private chat (chat and sender = `TELEGRAM_CHAT_ID`), photos only,
+EXIF/GPS stripped and kept in memory only, answered with **no tools** (text in a photo can't trigger actions), 10 per
+10 minutes, outgoing polling only. Full list: esp32-homeai's `api/README.md`, "Photos via Telegram".
 
 ## Design notes
 

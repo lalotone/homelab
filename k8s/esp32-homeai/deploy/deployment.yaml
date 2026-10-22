@@ -115,6 +115,12 @@ spec:
                   name: telegram-bot
                   key: chat_id
                   optional: true
+            # Photos sent to that bot, for Rocky to look at (needs llama.cpp's vision: --mmproj). The only inbound path
+            # to the AI: the configured chat only, photos only, answered with no tools (esp32-homeai api/app/photos.py).
+            - name: TELEGRAM_PHOTOS
+              value: "true"
+            - name: QUIET_HOURS          # no photo answers on the speaker 00:00-08:00 (alarms/timers still ring)
+              value: "0-8"
             - name: HF_HUB_OFFLINE      # models are pre-copied to /mnt/esp32-homeai/hf (no internet from pods; like vLLM)
               value: "1"
           ports:
