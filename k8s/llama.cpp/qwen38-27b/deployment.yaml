@@ -54,8 +54,17 @@ spec:
             - "9999"                    # all layers on the GPUs
             - --tensor-split
             - "1,1"                     # even split across the two cards
+            # Vision: Qwen3.8-27B is multimodal; the GGUF ships the vision encoder separately (mmproj, ~0.93 GB).
+            # It and the "main" GPU work go on CUDA1 (06:00.0, see CUDA_DEVICE_ORDER below), away from the voice
+            # pod's usual card, since time-slicing shares compute, not memory.
             - --main-gpu
-            - "0"
+            - "1"
+            - --mmproj
+            - /models/mmproj-F16.gguf   # from unsloth/Qwen3.8-27B-GGUF, next to the model on heavy1
+            - --mmproj-device
+            - CUDA1
+            - --image-max-tokens
+            - "1024"                    # caps one image's share of the 16k context (and its compute buffer)
             - --ctx-size
             - "16384"                   # same working context as vLLM's with-voice overlay
             - --cache-type-k
@@ -69,6 +78,9 @@ spec:
             - 0.0.0.0
             - --port
             - "8000"
+          env:
+            - name: CUDA_DEVICE_ORDER     # CUDA0/CUDA1 = 01:00.0/06:00.0, as nvidia-smi numbers them
+              value: PCI_BUS_ID
           ports:
             - name: http
               containerPort: 8000

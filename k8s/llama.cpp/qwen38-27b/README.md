@@ -43,6 +43,13 @@ NodePort 30801 for outside the cluster.
    scp ~/path/to/Qwen3.8-27B-UD-Q4_K_XL.gguf heavy1:/mnt/models/
    ```
 
+   Also the **vision projector** (Qwen3.8-27B is multimodal; GGUF keeps the vision encoder in a separate file):
+
+   ```bash
+   ssh heavy1 'cd /mnt/models && curl -fL -o mmproj-F16.gguf \
+     https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/mmproj-F16.gguf'   # 0.93 GB
+   ```
+
    The volume is `type: Directory`, so if `/mnt/models` doesn't exist the pod fails to start (intended: fail fast
    rather than serve with no model). The filename is baked into the `-m` flag — rename the file and you must edit
    `deployment.yaml` to match. It's a single-file model, so there's no HF cache or `HF_HUB_OFFLINE` to set up here.
@@ -78,7 +85,10 @@ Expect ~9-10 GB used per card, leaving room for the voice's ~3.25 GiB. If the vo
 | `-m` | `/models/Qwen3.8-27B-UD-Q4_K_XL.gguf` | hostPath-mounted from `/mnt/models` |
 | `--n-gpu-layers 9999` | all | everything on the GPUs, none offloaded |
 | `--tensor-split 1,1` | even | equal split across the two cards (needs both to be visible) |
-| `--main-gpu 0` | | which card holds the first layers |
+| `--main-gpu 1` | | the "main" card: CUDA1 = `06:00.0` (with `CUDA_DEVICE_ORDER=PCI_BUS_ID`), away from the voice pod's usual card |
+| `--mmproj` | `/models/mmproj-F16.gguf` | vision: images (and video) over the OpenAI API |
+| `--mmproj-device CUDA1` | | the vision encoder (~1 GB) on the same card as the main work |
+| `--image-max-tokens 1024` | | one image takes at most ~1k of the 16k context |
 | `--ctx-size 16384` | | same working context as vLLM's with-voice |
 | `--cache-type-k/v q8_0` | | quantized KV ≈ half the memory of f16 |
 | `--jinja` | | use the model's chat template from the GGUF (tools/thinking) |
@@ -88,6 +98,23 @@ The `esp32-homeai` API talks to this over the standard OpenAI `/v1/chat/completi
 implements. Its `LLM_ENABLE_THINKING=false` sends `chat_template_kwargs: {enable_thinking: false}`, which llama-server
 passes to the model's chat template (`--jinja`), so thinking really is off. Verified on 2026-10-22: `true` returns
 reasoning text in `reasoning_content`, `false` answers directly.
+
+## Vision
+
+Images work through the usual OpenAI endpoint, as an `image_url` part of a message (OpenWebUI does this when you
+attach a picture):
+
+```bash
+curl http://<heavy1>:30801/v1/chat/completions -H 'Content-Type: application/json' -d '{
+  "model": "qwen3.8-27b", "messages": [{"role": "user", "content": [
+    {"type": "text", "text": "What is in this picture?"},
+    {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,<...>"}}]}]}'
+```
+
+`curl http://<heavy1>:30801/props` shows `"modalities": {"vision": true, ...}` when the projector loaded. Measured on
+2026-10-22: ~4 s for a photo (≈1,000 prompt tokens); the projector added ~1 GB to card 1 (10.5 GB used, peak 10.6 GB
+during an image), card 0 with the voice pod unchanged (13.3 GB); text speed unchanged at 22.8 tok/s. If the voice pod
+lands on card 1 after a restart, both cards still fit (~15 of 16.3 GB on the busier one).
 
 ## Order and checks
 
