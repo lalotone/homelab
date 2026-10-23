@@ -1,0 +1,13 @@
+[Unit]
+Description=Fallback WiFi access point when no WiFi network is connected
+After=NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/wifi-fallback-ap
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

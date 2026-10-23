@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# wifi-fallback-ap: if the Pi isn't on a WiFi network, open its own access point so you can join it and fix the
+# WiFi; when it's connected normally, no AP. Works with NetworkManager (Raspberry Pi OS Bookworm/Trixie).
+#
+#   systemctl status wifi-fallback-ap        journalctl -u wifi-fallback-ap -f
+#   wifi-fallback-ap --status                what it would do right now (no changes)
+#
+# Join the AP (AP_SSID), then:  ssh <user>@10.42.0.1   and fix the WiFi, e.g.
+#   sudo nmcli device wifi connect "<SSID>" password "<password>"
+#
+# One radio: while the AP is up the Pi can't also be a WiFi client. So every RETRY_HOME_EVERY seconds it pauses the
+# AP to let NetworkManager retry the saved networks, but only when nobody is connected to the AP.
+set -uo pipefail
+
+CONF=/etc/wifi-fallback-ap.conf
+IFACE=wlan0
+AP_CON=fallback-ap                 # NetworkManager profile name of the AP
+AP_SSID="$(hostname)-setup"
+AP_PASSWORD=""                     # WPA2, 8-63 chars: set in $CONF (root-only), never here
+AP_ADDRESS=10.42.0.1/24
+BOOT_GRACE=90                      # after start, give NetworkManager this long to join a saved network
+DROP_GRACE=60                      # a drop must last this long before the AP comes up (router reboots, hiccups)
+CHECK_EVERY=20
+RETRY_HOME_EVERY=300
+RETRY_WAIT=45                      # how long a retry waits for a saved network before the AP comes back
+# shellcheck source=/dev/null
+[ -r "$CONF" ] && . "$CONF"
+
+log() { echo "$*"; }
+
+wifi_connected() {
+    # wlan0 connected through anything but our own AP profile
+    nmcli -t -f DEVICE,STATE,CONNECTION device 2>/dev/null \
+        | awk -F: -v d="$IFACE" -v ap="$AP_CON" '$1 == d && $2 == "connected" && $3 != ap {ok = 1} END {exit !ok}'
+}
+
+ap_active() {
+    nmcli -t -f NAME connection show --active 2>/dev/null | grep -qx "$AP_CON"
+}
+
+ap_has_clients() {
+    # devices that talked to us on the AP recently (no extra tools needed: the neighbour table)
+    ip neigh show dev "$IFACE" 2>/dev/null | grep -qE 'REACHABLE|STALE|DELAY|PROBE'
+}
+
+ensure_ap_profile() {
+    if ! nmcli -t -f NAME connection show | grep -qx "$AP_CON"; then
+        nmcli connection add type wifi ifname "$IFACE" con-name "$AP_CON" autoconnect no ssid "$AP_SSID" >/dev/null
+    fi
+    # (re)applied every start, so editing $CONF takes effect on restart
+    nmcli connection modify "$AP_CON" \
+        connection.autoconnect no 802-11-wireless.ssid "$AP_SSID" \
+        802-11-wireless.mode ap 802-11-wireless.band bg 802-11-wireless.channel 6 \
+        ipv4.method shared ipv4.addresses "$AP_ADDRESS" ipv6.method disabled \
+        wifi-sec.key-mgmt wpa-psk wifi-sec.proto rsn wifi-sec.pairwise ccmp wifi-sec.group ccmp \
+        wifi-sec.psk "$AP_PASSWORD" >/dev/null
+}
+
+ap_up() {
+    log "no WiFi connection: starting access point \"$AP_SSID\" on ${AP_ADDRESS%/*}"
+    nmcli connection up "$AP_CON" >/dev/null 2>&1 || log "could not start the access point (will retry)"
+}
+
+ap_down() {
+    nmcli connection down "$AP_CON" >/dev/null 2>&1 || true
+}
+
+if [ "${1:-}" = "--status" ]; then
+    if wifi_connected; then echo "WiFi connected: no AP needed"
+    elif ap_active; then echo "access point \"$AP_SSID\" is up$(ap_has_clients && echo ", someone is connected")"
+    else echo "not connected and no AP: the service would start the AP"; fi
+    exit 0
+fi
+
+if [ ${#AP_PASSWORD} -lt 8 ] || [ ${#AP_PASSWORD} -gt 63 ]; then
+    log "AP_PASSWORD in $CONF must be 8-63 characters: not starting"
+    exit 1
+fi
+ensure_ap_profile
+
+log "waiting up to ${BOOT_GRACE}s for a saved WiFi network"
+for _ in $(seq 1 "$BOOT_GRACE"); do wifi_connected && break; sleep 1; done
+
+last_retry=$(date +%s)
+down_since=""
+wifi_connected || down_since=$(( $(date +%s) - DROP_GRACE ))   # still offline after the boot grace: AP right away
+while true; do
+    if wifi_connected; then
+        down_since=""
+        if ap_active; then log "WiFi is back: stopping the access point"; ap_down; fi
+    elif ! ap_active; then
+        [ -n "$down_since" ] || { down_since=$(date +%s); log "WiFi dropped: giving it ${DROP_GRACE}s to come back"; }
+        if [ $(( $(date +%s) - down_since )) -ge "$DROP_GRACE" ]; then
+            ap_up
+            last_retry=$(date +%s)
+        fi
+    elif [ $(( $(date +%s) - last_retry )) -ge "$RETRY_HOME_EVERY" ]; then
+        last_retry=$(date +%s)
+        if ap_has_clients; then
+            log "someone is on the access point: not retrying the saved networks now"
+        else
+            log "retrying the saved WiFi networks (pausing the access point up to ${RETRY_WAIT}s)"
+            ap_down
+            nmcli device wifi rescan ifname "$IFACE" >/dev/null 2>&1 || true
+            for _ in $(seq 1 "$RETRY_WAIT"); do wifi_connected && break; sleep 1; done
+            if wifi_connected; then log "connected to a saved network again"; else ap_up; fi
+        fi
+    fi
+    sleep "$CHECK_EVERY"
+done

@@ -1,0 +1,18 @@
+[Unit]
+Description=rocky-cam: one photo per request for Rocky's eyes
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/python3 %h/rocky-cam/rocky_cam.py
+# ROCKY_CAM_ALLOW=<heavy1 LAN IP> lives here, not in the repo
+EnvironmentFile=%h/.config/rocky-cam/env
+Restart=always
+RestartSec=5
+# no reason for this service to write anywhere: the photo only lives in memory
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

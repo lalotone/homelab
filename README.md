@@ -73,6 +73,7 @@ flowchart LR
 
 ```
 .
+├── raspizero/                Pi Zero 2 W: camera for Rocky's eyes (rocky-cam), fallback WiFi AP
 └── k8s/
     ├── nvidia-operator/          GPU Operator installation
     │   └── time-slicing/         4 shares per GPU, so small GPU pods fit next to vLLM
