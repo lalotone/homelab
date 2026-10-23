@@ -64,7 +64,7 @@ spec:
             - --mmproj-device
             - CUDA1
             - --image-max-tokens
-            - "1024"                    # caps one image's share of the 16k context (and its compute buffer)
+            - "2048"                    # ~1660x1250 px of detail per image (bench work: markings, parts); ~2k of the 16k context
             - --ctx-size
             - "16384"                   # same working context as vLLM's with-voice overlay
             - --cache-type-k

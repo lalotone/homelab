@@ -14,14 +14,13 @@ kind: Kustomization
 resources:
   - ../deploy
 
-# :cuda-fast = the ../deploy image plus faster-qwen3-tts (CUDA-graph TTS, ~4x faster: 0.72x -> 2.8x realtime on
-# the 5060 Ti). A thin layer on top of the :cuda digest, so heavy1 only pulls ~58 MB.
-# :cuda-tools = :cuda-fast + the LLM tools (time, weather, news, math, Wikipedia): a 41 kB code-only layer.
-# Rollback: `kubectl -n voice rollout undo deploy/esp32-homeai-api` (back to the :cuda digest), then delete this block.
-# TTS_ENGINE=qwen switches this same image to plain qwen_tts (untested).
+# :cuda-tools = the ../deploy :cuda image plus the esp32-homeai repo's current app/ and newer deps (faster-qwen3-tts,
+# transformers 5, shazamio), built with its api/Dockerfile.thin as one thin layer, so heavy1 only pulls ~75 MB.
+# Rollback: `kubectl -n voice rollout undo deploy/esp32-homeai-api`, then restore the previous digest here.
+# TTS_ENGINE=qwen switches this same image to plain qwen_tts.
 images:
   - name: fooser/esp32-homeai-api   # the name after ../deploy's own images: rewrite
-    digest: sha256:e058b24fdebddd68ffcfcd6b8a59e690bb556d9c8d647c2f887c7b4bc2ff6d61  # :cuda-tools
+    digest: sha256:be1dd1e133e9ccdac821436b718e7e7538519dc7ea434c2d13151e0ff44cb32f  # :cuda-tools
 
 patches:
   - target:

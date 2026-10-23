@@ -88,7 +88,7 @@ Expect ~9-10 GB used per card, leaving room for the voice's ~3.25 GiB. If the vo
 | `--main-gpu 1` | | the "main" card: CUDA1 = `06:00.0` (with `CUDA_DEVICE_ORDER=PCI_BUS_ID`), away from the voice pod's usual card |
 | `--mmproj` | `/models/mmproj-F16.gguf` | vision: images (and video) over the OpenAI API |
 | `--mmproj-device CUDA1` | | the vision encoder (~1 GB) on the same card as the main work |
-| `--image-max-tokens 1024` | | one image takes at most ~1k of the 16k context |
+| `--image-max-tokens 2048` | | ~1660x1250 px of detail per image (bench work: markings, parts); at most ~2k of the 16k context |
 | `--ctx-size 16384` | | same working context as vLLM's with-voice |
 | `--cache-type-k/v q8_0` | | quantized KV ≈ half the memory of f16 |
 | `--jinja` | | use the model's chat template from the GGUF (tools/thinking) |
@@ -112,7 +112,7 @@ curl http://<heavy1>:30801/v1/chat/completions -H 'Content-Type: application/jso
 ```
 
 `curl http://<heavy1>:30801/props` shows `"modalities": {"vision": true, ...}` when the projector loaded. Measured on
-2026-10-22: ~4 s for a photo (≈1,000 prompt tokens); the projector added ~1 GB to card 1 (10.5 GB used, peak 10.6 GB
+2026-10-22: ~4 s for a photo (≈1,000 prompt tokens; with the 2048 cap on 2026-10-23, ~8 s and card 1 peaking at 10.7 GB); the projector added ~1 GB to card 1 (10.5 GB used, peak 10.6 GB
 during an image), card 0 with the voice pod unchanged (13.3 GB); text speed unchanged at 22.8 tok/s. If the voice pod
 lands on card 1 after a restart, both cards still fit (~15 of 16.3 GB on the busier one).
 

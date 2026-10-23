@@ -99,6 +99,7 @@ The API gives the LLM function-calling tools (`~/src/repos/esp32-homeai/api/app/
 | `identify_song` | Shazam via shazamio (unofficial, no key); the follow-up recording is the music sample; matches also go to Telegram |
 | `send_to_phone` / `send_shopping_list` | Telegram bot, only to `TELEGRAM_CHAT_ID` |
 | photo inbox + `look_at_last_photo` | photos you send the bot, answered by llama.cpp's vision (`TELEGRAM_PHOTOS=true`, guardrails below) |
+| `look_through_camera` | "take a photo" / "what do you see?": a new photo from the Pi Zero camera ([`raspizero/rocky-cam`](../../raspizero/)), token + heavy1-only, nothing stored; off 00:00-08:00 (`QUIET_HOURS`) |
 
 A question that needs a tool costs one extra LLM round (~2-4 s). The last 4 exchanges (tool calls included, or the model starts claiming "timer set" without calling the tool) are kept for 5 minutes, so follow-ups work (`HISTORY_TURNS`, `HISTORY_TTL_S`). `TOOLS_ENABLED=false` turns them off. `WHISPER_PROMPT`
 lists local names so the English Whisper doesn't mishear them ("Zaragoza" as "Maragona"). An action request that ends
@@ -140,6 +141,12 @@ vision ([`--mmproj`](../llama.cpp/qwen38-27b/README.md#vision)); the speaker can
 It's the only inbound path to the AI, so: only your private chat (chat and sender = `TELEGRAM_CHAT_ID`), photos only,
 EXIF/GPS stripped and kept in memory only, answered with **no tools** (text in a photo can't trigger actions), 10 per
 10 minutes, outgoing polling only. Full list: esp32-homeai's `api/README.md`, "Photos via Telegram".
+
+## Camera (Rocky's eyes)
+
+`CAMERA_URL` (in the private `esp32-homeai-home` ConfigMap: `http://<Pi LAN IP>:8765/snapshot`) points at the Pi Zero's [rocky-cam](../../raspizero/), and `CAMERA_TOKEN` comes from the `rocky-cam` Secret,
+copied straight from the Pi without being printed (commands in that README). The camera photo goes Pi → heavy1 →
+llama.cpp, never leaving the house, with the same guardrails as Telegram photos.
 
 ## Design notes
 

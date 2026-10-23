@@ -121,6 +121,15 @@ spec:
               value: "true"
             - name: QUIET_HOURS          # no photo answers on the speaker 00:00-08:00 (alarms/timers still ring)
               value: "0-8"
+            # Rocky's eyes: the Pi Zero camera running rocky-cam (token + heavy1-only, one photo per request, nothing
+            # stored). Off during QUIET_HOURS. CAMERA_URL is in the private esp32-homeai-home ConfigMap (the Pi's LAN
+            # address); the token Secret is copied from the Pi by hand. Neither is committed.
+            - name: CAMERA_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: rocky-cam
+                  key: token
+                  optional: true
             - name: HF_HUB_OFFLINE      # models are pre-copied to /mnt/esp32-homeai/hf (no internet from pods; like vLLM)
               value: "1"
           ports:
