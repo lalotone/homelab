@@ -53,7 +53,10 @@ spec:
             - --n-gpu-layers
             - "9999"                    # all layers on the GPUs
             - --tensor-split
-            - "1,1"                     # even split across the two cards
+            # More layers on CUDA0, because CUDA1 also carries the vision encoder and its buffers (below): with 1,1 it
+            # used 10.7 GB vs 8.3, and the voice pod (~5 GB, time-sliced onto either card) ran out of memory on it.
+            # 1.3,1 leaves both cards ~9.5 GB used, so the voice pod fits on whichever card it gets.
+            - "1.3,1"
             # Vision: Qwen3.8-27B is multimodal; the GGUF ships the vision encoder separately (mmproj, ~0.93 GB).
             # It and the "main" GPU work go on CUDA1 (06:00.0, see CUDA_DEVICE_ORDER below), away from the voice
             # pod's usual card, since time-slicing shares compute, not memory.

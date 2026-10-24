@@ -6,7 +6,7 @@
 
 Privacy by design: there is no stream and nothing is saved; the photo is captured into memory and sent. Only the
 addresses in ROCKY_CAM_ALLOW may ask (nobody when unset), and they need the token in ~/.config/rocky-cam/token.
-One capture at a time, at most one every MIN_INTERVAL_S. Every request is logged (journalctl --user -u rocky-cam).
+One capture at a time, at most one per MIN_INTERVAL_S. Every request is logged (journalctl --user -u rocky-cam).
 Standard library only.
 """
 import hmac
@@ -24,7 +24,7 @@ TOKEN_FILE = Path(os.environ.get("ROCKY_CAM_TOKEN_FILE", Path.home() / ".config/
 # Full sensor resolution by default (OV5647: 2592x1944): the API keeps it for zooming into small parts.
 WIDTH, HEIGHT = (int(v) for v in os.environ.get("ROCKY_CAM_SIZE", "2592x1944").lower().split("x"))
 QUALITY = 92
-MIN_INTERVAL_S = 3
+MIN_INTERVAL_S = 1
 CAPTURE_TIMEOUT_S = 15
 
 _lock = threading.Lock()
@@ -43,6 +43,10 @@ def _token() -> str:
 # So: a tiny test frame at a known exposure, its mean brightness, and the photo at the exposure that hits TARGET_LUMA.
 METER_W, METER_H, TARGET_LUMA = 320, 240, 110
 MAX_SHUTTER_US, MAX_GAIN = 33000, 8.0
+# Metering costs 1-3 test frames (~1 s each), so its result is reused for METER_TTL_S: Live View takes a photo every
+# few seconds, and a bench's light doesn't change that fast. A photo then takes ~1.5 s instead of 3-4 s.
+METER_TTL_S = 30
+_metered: tuple[float, int, float] | None = None   # (when, shutter, gain)
 
 
 def _luma(shutter_us: int, gain: float) -> float:
@@ -71,9 +75,12 @@ def meter() -> tuple[int, float]:
 
 def capture() -> bytes:
     """A well-exposed JPEG straight from rpicam-still's stdout: it never touches the disk."""
-    shutter, gain = meter()
+    global _metered
+    if _metered is None or time.monotonic() - _metered[0] > METER_TTL_S:
+        _metered = (time.monotonic(), *meter())
+    _when, shutter, gain = _metered
     out = subprocess.run(
-        ["rpicam-still", "-n", "-t", "500", "--width", str(WIDTH), "--height", str(HEIGHT), "-q", str(QUALITY),
+        ["rpicam-still", "-n", "-t", "200", "--width", str(WIDTH), "--height", str(HEIGHT), "-q", str(QUALITY),
          "--shutter", str(shutter), "--gain", f"{gain:.2f}", "-o", "-"],
         capture_output=True, timeout=CAPTURE_TIMEOUT_S, check=True)
     if not out.stdout.startswith(b"\xff\xd8"):
