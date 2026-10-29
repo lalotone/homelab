@@ -1,0 +1,21 @@
+# SearXNG: a private metasearch engine for Rocky's web_search tool (k8s/esp32-homeai). README.md has the setup.
+#   kubectl apply -k .
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: searxng
+
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+
+configMapGenerator:
+  - name: searxng-settings
+    files:
+      - settings.yml
+
+# Date tags, no semver; pinned to a build at least two weeks old (latest moves daily).
+images:
+  - name: searxng/searxng
+    newTag: 2026.10.13-22c64b8d3

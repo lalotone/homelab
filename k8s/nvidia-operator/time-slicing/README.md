@@ -2,7 +2,7 @@
 
 Each RTX 5060 Ti on heavy1 is advertised as **4** `nvidia.com/gpu` (8 in total), so small GPU workloads
 (e.g. `k8s/esp32-homeai/with-gpu`, 1 share) can run next to the 27B (2 shares, one per card). In practice that's the
-llama.cpp 27B (`k8s/llama.cpp/qwen38-27b`): vLLM leaves too little memory per card for the voice.
+llama.cpp brain (`k8s/llama.cpp/gemma4-26b-a4b`, or the Qwen 27B in `k8s/llama.cpp/qwen38-27b`): vLLM leaves too little memory per card for the voice.
 
 ```bash
 ./enable_time_slicing.sh     # applies configmap.yaml + helm upgrade (chart v26.7.1, --reuse-values)
@@ -17,7 +17,8 @@ It points the ClusterPolicy's `devicePlugin.config` at `time-slicing-config` thr
 kubectl get node heavy1 -o jsonpath='{.status.allocatable.nvidia\.com/gpu}'     # expect 8
 kubectl get node heavy1 -L nvidia.com/gpu.replicas,nvidia.com/gpu.product      # replicas=4, product ends in -SHARED
 # the 27B must still get two DIFFERENT physical GPUs (after its next restart):
-kubectl -n llm exec deploy/llama-qwen38 -- nvidia-smi -L                       # two different GPU UUIDs
+kubectl -n llm exec deploy/llama-gemma4 -- nvidia-smi -L                       # two different GPU UUIDs
+# (deploy/llama-qwen38 when the Qwen 27B is the llama.cpp brain)
 # (or deploy/vllm-qwen38 when vLLM is the brain)
 ```
 

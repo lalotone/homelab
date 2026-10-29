@@ -1,4 +1,5 @@
 # Mode A (llama.cpp brain):  kubectl apply -k .
+#   STANDBY since 2026-10-28 (replicas 0 in deployment.yaml): ../gemma4-26b-a4b is the llama.cpp brain now.
 #   Qwen3.8-27B GGUF across both GPUs -> http://<heavy1>:30801/v1  (inside: llama-qwen38.llm:8000)
 #
 # The 27B can only be served by one engine at a time (both need both cards). Swap, don't stack:
@@ -16,7 +17,7 @@ namespace: llm
 
 resources:
   - deployment.yaml
-  - service.yaml
+  - ../shared                           # the Service, shared with ../gemma4-26b-a4b
 
 # server-cuda, NOT server: the plain :server tag is the CPU-only build (it logs "no usable GPU found" and
 # silently ignores --n-gpu-layers/--tensor-split). server-cuda is still a moving tag; after a good start, pin

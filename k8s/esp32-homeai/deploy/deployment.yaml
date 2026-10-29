@@ -70,6 +70,8 @@ spec:
               value: qwen3.8-27b
             - name: LLM_ENABLE_THINKING # ~1 s replies instead of 4-9 s, same answers on short voice questions
               value: "false"
+            - name: SEARXNG_URL         # the web_search tool: the private SearXNG (k8s/searxng), its pinned ClusterIP
+              value: http://10.105.13.251:8080
             - name: TTS_DEVICE
               value: cpu
             - name: WHISPER_DEVICE      # Whisper small on the 5600G: ~1-2 s for a 5 s clip

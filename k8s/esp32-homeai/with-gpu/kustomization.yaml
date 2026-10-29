@@ -1,12 +1,13 @@
 # Voice assistant on the GPU: TTS (Qwen3-TTS) on a GPU share instead of the CPU, and the LLM pointed at the
-# llama.cpp 27B (k8s/llama.cpp/qwen38-27b) instead of vLLM.
+# llama.cpp brain instead of vLLM: Gemma 4 26B A4B (k8s/llama.cpp/gemma4-26b-a4b) since 2026-10-28, Qwen 27B
+# (k8s/llama.cpp/qwen38-27b) on standby.
 #
 #   kubectl apply -k .        instead of  kubectl apply -k ../deploy
 #
-# Needs the llama.cpp 27B to be the brain (vLLM scaled to 0) and time-slicing enabled. Why the GPU only works
-# next to llama.cpp (and not next to vLLM): ../../llama.cpp/qwen38-27b/README.md.
+# Needs a llama.cpp brain (vLLM scaled to 0) and time-slicing enabled. Why the GPU only works next to llama.cpp (and
+# not next to vLLM): ../../llama.cpp/qwen38-27b/README.md.
 #
-# LLM_BASE_URL is llama.cpp's ClusterIP, pinned in ../../llama.cpp/qwen38-27b/service.yaml. Not a DNS name: pods on
+# LLM_BASE_URL is llama.cpp's ClusterIP, pinned in ../../llama.cpp/shared/service.yaml (either brain). Not a DNS name: pods on
 # heavy1 can't reach CoreDNS (llama.cpp runs on heavy1 too, so it stays local — same as vLLM's did).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -20,7 +21,7 @@ resources:
 # TTS_ENGINE=qwen switches this same image to plain qwen_tts.
 images:
   - name: fooser/esp32-homeai-api   # the name after ../deploy's own images: rewrite
-    digest: sha256:094004a16cccdc765773dd8cadff22cad181fdf186a1d46739db1c8cb3ae715c  # :cuda-tools
+    digest: sha256:6b2c34f1fbc552ab2682232baeb7ce3017cb68bbb2b03545fba44de41c49041f  # :cuda-tools
 
 patches:
   - target:

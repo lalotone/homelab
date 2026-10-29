@@ -1,0 +1,119 @@
+# Gemma 4 26B A4B (GGUF, UD-Q4_K_XL) on heavy1 with llama.cpp, split across the 2× RTX 5060 Ti: the voice
+# assistant's brain since 2026-10-28 (README.md: why, measurements, how to roll back to ../qwen38-27b).
+#
+# A mixture of experts: 26B weights in memory, ~4B of them work per token, so it writes ~75 tokens/s vs the dense
+# Qwen 27B's 22 at about the same memory. Only one brain runs at a time (both need both cards); the shared Service
+# (../shared, pinned ClusterIP 10.105.13.250) reaches whichever is up.
+#
+# Path on heavy1 (README.md has the download commands):
+#   /mnt/models/gemma-4-26B-A4B-it-UD-Q4_K_XL.gguf   the model (17.0 GB), mounted read-only at /models
+#   /mnt/models/gemma4-mmproj-F16.gguf               its vision encoder (1.19 GB)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama-gemma4
+  labels:
+    app: llama-gemma4
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate                      # exclusive GPUs: never two pods at once
+  selector:
+    matchLabels:
+      app: llama-gemma4
+  template:
+    metadata:
+      labels:
+        app: llama-gemma4
+        llm-brain: llama-cpp            # what the shared Service (../shared) selects
+    spec:
+      runtimeClassName: nvidia          # created by the GPU Operator
+      nodeSelector:
+        kubernetes.io/hostname: heavy1  # the GGUF lives on its disk
+      tolerations:
+        - key: nvidia.com/gpu           # taint reserving heavy1's GPUs
+          operator: Exists
+          effect: NoSchedule
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: llama
+          image: ghcr.io/ggml-org/llama.cpp   # :server-cuda tag set in kustomization.yaml (ENTRYPOINT is llama-server)
+          args:
+            - -m
+            - /models/gemma-4-26B-A4B-it-UD-Q4_K_XL.gguf
+            - --n-gpu-layers
+            - "9999"                    # all layers on the GPUs
+            - --tensor-split
+            # Balanced so the voice pod (~5 GB, time-sliced onto either card, can't be pinned) fits on whichever it gets.
+            # CUDA1 also carries the vision encoder (below), so CUDA0 takes more layers: 1,1.1 left 8.5 / 10.6 GB.
+            - "1.2,1"
+            # Vision: the encoder (mmproj) and the "main" GPU work on CUDA1, away from the voice pod's usual card.
+            - --main-gpu
+            - "1"
+            - --mmproj
+            - /models/gemma4-mmproj-F16.gguf
+            - --mmproj-device
+            - CUDA1
+            # Image budget: llama.cpp caps Gemma's images at n_ubatch (512) tokens, since its image attention must
+            # fit in one batch. More was tested (--ubatch-size 2048 --image-min-tokens 1024: ~1000 tokens per image)
+            # and only made looks slower (2.7 -> 4.3 s), not better. So the default.
+            - --ctx-size
+            - "16384"
+            - --cache-type-k
+            - q8_0                      # quantized KV cache: ~half the memory of f16
+            - --cache-type-v
+            - q8_0
+            - --jinja                   # use the model's own chat template from the GGUF
+            - --alias
+            - gemma-4-26b-a4b           # llama-server answers whatever model name a client sends (LLM_MODEL too)
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8000"
+          env:
+            - name: CUDA_DEVICE_ORDER     # CUDA0/CUDA1 = 01:00.0/06:00.0, as nvidia-smi numbers them
+              value: PCI_BUS_ID
+          ports:
+            - name: http
+              containerPort: 8000
+          resources:
+            requests:
+              cpu: "2"
+              memory: 8Gi
+              nvidia.com/gpu: 2
+            limits:
+              memory: 16Gi
+              nvidia.com/gpu: 2
+          startupProbe:                         # read the 17 GB GGUF from disk + load to the GPUs
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 120               # 20 min
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 5
+          volumeMounts:
+            - name: shm                         # the default 64 MB /dev/shm isn't enough for CUDA workloads
+              mountPath: /dev/shm
+            - name: model
+              mountPath: /models
+              readOnly: true
+      volumes:
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 4Gi
+        - name: model
+          hostPath:
+            path: /mnt/models
+            type: Directory                     # must exist: fail fast instead of starting with no model

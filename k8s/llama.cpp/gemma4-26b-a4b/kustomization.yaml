@@ -1,0 +1,19 @@
+# The llama.cpp brain, Gemma 4 26B A4B (README.md). Only one brain at a time: ../qwen38-27b is on standby (replicas 0).
+#   kubectl apply -k .
+# Back to Qwen: README.md, "Roll back to Qwen".
+#
+# No Namespace on purpose: 'llm' is created by k8s/vllm/qwen38-27b-single/deploy.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: llm
+
+resources:
+  - deployment.yaml
+  - ../shared                           # the Service (pinned ClusterIP), shared with ../qwen38-27b
+
+# Same llama.cpp image as ../qwen38-27b (server-cuda, the CUDA build). Gemma 4 support (text and vision) is in
+# build 11804, the one heavy1 has cached; pin it the same way as there once it's settled.
+images:
+  - name: ghcr.io/ggml-org/llama.cpp
+    newTag: server-cuda

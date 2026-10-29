@@ -2,6 +2,7 @@
 """rocky-cam: one photo per request, for Rocky's eyes (the esp32-homeai voice API's look_through_camera tool).
 
     GET /snapshot   Authorization: Bearer <token>   -> image/jpeg, taken right now
+    GET /snapshot?size=small                        -> the same at half resolution (faster, for Live View)
     GET /health                                     -> "ok" (no camera, no auth)
 
 Privacy by design: there is no stream and nothing is saved; the photo is captured into memory and sent. Only the
@@ -23,6 +24,9 @@ ALLOW = {a.strip() for a in os.environ.get("ROCKY_CAM_ALLOW", "").split(",") if 
 TOKEN_FILE = Path(os.environ.get("ROCKY_CAM_TOKEN_FILE", Path.home() / ".config/rocky-cam/token"))
 # Full sensor resolution by default (OV5647: 2592x1944): the API keeps it for zooming into small parts.
 WIDTH, HEIGHT = (int(v) for v in os.environ.get("ROCKY_CAM_SIZE", "2592x1944").lower().split("x"))
+# The sensor's 2x2-binned mode: 0.9 s to capture instead of 1.5 s, and a quarter of the data to send. Enough for
+# Live View, which looks often and at smaller images.
+SMALL = (1296, 972)
 QUALITY = 92
 MIN_INTERVAL_S = 1
 CAPTURE_TIMEOUT_S = 15
@@ -73,14 +77,15 @@ def meter() -> tuple[int, float]:
     return shutter, gain
 
 
-def capture() -> bytes:
+def capture(small: bool = False) -> bytes:
     """A well-exposed JPEG straight from rpicam-still's stdout: it never touches the disk."""
     global _metered
     if _metered is None or time.monotonic() - _metered[0] > METER_TTL_S:
         _metered = (time.monotonic(), *meter())
     _when, shutter, gain = _metered
+    width, height = SMALL if small else (WIDTH, HEIGHT)
     out = subprocess.run(
-        ["rpicam-still", "-n", "-t", "200", "--width", str(WIDTH), "--height", str(HEIGHT), "-q", str(QUALITY),
+        ["rpicam-still", "-n", "-t", "200", "--width", str(width), "--height", str(height), "-q", str(QUALITY),
          "--shutter", str(shutter), "--gain", f"{gain:.2f}", "-o", "-"],
         capture_output=True, timeout=CAPTURE_TIMEOUT_S, check=True)
     if not out.stdout.startswith(b"\xff\xd8"):
@@ -105,9 +110,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         global _last
-        if self.path == "/health":
+        path, _, query = self.path.partition("?")
+        if path == "/health":
             return self._reply(200, b"ok")
-        if self.path != "/snapshot":
+        if path != "/snapshot" or query not in ("", "size=small"):
             return self._reply(404)
         if self.client_address[0] not in ALLOW:
             print(f"refused {self.client_address[0]}: not allowed", flush=True)
@@ -129,7 +135,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._reply(429, b"too soon")
             t0 = time.monotonic()
             try:
-                jpeg = capture()
+                jpeg = capture(small=query == "size=small")
             except Exception as e:
                 print(f"capture failed: {type(e).__name__}", flush=True)
                 return self._reply(503, b"camera error")

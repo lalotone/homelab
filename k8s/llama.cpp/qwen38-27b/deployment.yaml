@@ -1,5 +1,8 @@
 # Qwen3.8-27B (GGUF, Q4_K_XL) on heavy1 with llama.cpp, split across the 2× RTX 5060 Ti.
 #
+# STANDBY since 2026-10-28: Gemma 4 26B A4B (../gemma4-26b-a4b) is the brain now, ~3x faster. Kept, scaled to 0, to
+# roll back: set replicas 1 here and 0 there, then apply both (Gemma first, so its GPUs are free). See its README.
+#
 # This is the Mode A alternative to k8s/vllm/qwen38-27b-single. Both engines need both
 # physical cards, so only one can run at a time:
 #   kubectl -n llm scale deploy/vllm-qwen38  --replicas=0   # down vLLM
@@ -25,7 +28,7 @@ metadata:
   labels:
     app: llama-qwen38
 spec:
-  replicas: 1
+  replicas: 0                           # standby: Gemma 4 is the brain (see the header)
   strategy:
     type: Recreate                      # exclusive GPUs: never two pods at once
   selector:
@@ -35,6 +38,7 @@ spec:
     metadata:
       labels:
         app: llama-qwen38
+        llm-brain: llama-cpp            # what the shared Service (../shared) selects
     spec:
       runtimeClassName: nvidia          # created by the GPU Operator
       nodeSelector:

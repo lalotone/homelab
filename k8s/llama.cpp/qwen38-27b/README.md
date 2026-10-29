@@ -1,5 +1,9 @@
 # llama.cpp Qwen3.8-27B — the 27B brain that leaves room for a GPU voice
 
+> **Standby since 2026-10-28** (`replicas: 0`): [Gemma 4 26B A4B](../gemma4-26b-a4b/) is the brain now, ~3x faster.
+> This one stays ready to roll back to (how: that README, "Swap and roll back"). The Service moved to
+> [`../shared`](../shared/) so both brains use the same pinned ClusterIP; the rest of this page is as it was.
+
 The 27B model served by [llama.cpp](https://github.com/ggml-org/llama.cpp) `llama-server`, split across both RTX 5060 Ti
 on heavy1 with `--tensor-split`. It's the **Mode A alternative to**
 [`k8s/vllm/qwen38-27b-single`](../../vllm/qwen38-27b-single/): same role, same served model name
@@ -30,7 +34,7 @@ kubectl -n llm scale deploy/vllm-qwen38  --replicas=1
 ```
 
 When it's the brain, point the voice at it (the `with-gpu` overlay does this): `LLM_BASE_URL` → this service's
-pinned ClusterIP `10.105.13.250`, port 8000 (pinned in `service.yaml` because pods on heavy1 can't reach CoreDNS).
+pinned ClusterIP `10.105.13.250`, port 8000 (pinned in `../shared/service.yaml` because pods on heavy1 can't reach CoreDNS).
 NodePort 30801 for outside the cluster.
 
 ## Before the first apply

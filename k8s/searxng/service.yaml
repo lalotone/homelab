@@ -1,0 +1,18 @@
+# In-cluster only (no NodePort): the voice API is its only client.
+apiVersion: v1
+kind: Service
+metadata:
+  name: searxng
+  labels:
+    app: searxng
+spec:
+  type: ClusterIP
+  # Fixed ClusterIP, like the llama.cpp brain's (10.105.13.250): pods on heavy1 can't reach CoreDNS, so the voice API
+  # dials this IP (SEARXNG_URL). Must stay inside the service CIDR (10.96.0.0/12); immutable once created.
+  clusterIP: 10.105.13.251
+  selector:
+    app: searxng
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

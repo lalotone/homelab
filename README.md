@@ -55,8 +55,9 @@ flowchart LR
 |---|---|---|---|
 | [GPU platform](k8s/nvidia-operator/) | GPU scheduling on Kubernetes using the host driver, with a `RuntimeClass` and device plugin | NVIDIA GPU Operator, Helm | ✅ Running |
 | [LLM serving](k8s/vllm/qwen38-27b-single/) | A 27B coding model split across two consumer GPUs with tensor parallelism | vLLM, NVFP4, MTP speculative decoding | ✅ Running |
-| [LLM serving (llama.cpp)](k8s/llama.cpp/qwen38-27b/) | The 27B on llama.cpp instead of vLLM: leaves ~6-7 GiB/GPU so the voice's TTS can run on a GPU | llama.cpp, GGUF Q4_K_XL, tensor-split | 🧪 Alternative |
+| [LLM serving (llama.cpp)](k8s/llama.cpp/gemma4-26b-a4b/) | The voice's brain: Gemma 4 26B A4B (mixture of experts, ~3x faster than the dense 27B), with the [Qwen 27B](k8s/llama.cpp/qwen38-27b/) on standby. llama.cpp leaves ~6-7 GiB/GPU so the voice's TTS can run on a GPU | llama.cpp, GGUF Q4_K_XL, tensor-split | ✅ Running |
 | [Voice assistant](k8s/esp32-homeai/) | Backend for an ESP32 smart speaker: speech-to-text, the in-cluster LLM, and a cloned movie-character voice (on a GPU share next to llama.cpp, or on the CPU) | faster-whisper, Qwen3-TTS 0.6B, FastAPI | ✅ Running |
+| [Web search](k8s/searxng/) | Private metasearch (no cookies, no account) for the voice assistant's `web_search` tool | SearXNG | ✅ Running |
 | [Cache-aware inference routing](k8s/vllm/qwen-llmd/) | Multi-replica serving with prefix-cache-aware load balancing, set up for A/B testing against round-robin | llm-d, Envoy `ext_proc`, Gateway API Inference Extension | 🧪 Experiment |
 | DNS & ad blocking | Network-wide DNS filtering | Pi-hole | 📋 Planned |
 | GitOps | Continuous reconciliation of this repository into the cluster | Argo CD | 📋 Planned |
@@ -81,7 +82,10 @@ flowchart LR
     │   ├── deploy/               the API on the CPU (Whisper + vLLM 27B + Qwen3-TTS)
     │   └── with-gpu/             overlay: TTS on a GPU share, LLM pointed at llama.cpp
     ├── llama.cpp/
-    │   └── qwen38-27b/           27B GGUF on llama.cpp (tensor-split): the 27B brain that leaves room for a GPU voice
+    │   ├── gemma4-26b-a4b/       Gemma 4 26B A4B (MoE) GGUF: the voice's brain since 2026-10-28, ~3x faster than the 27B
+    │   ├── qwen38-27b/           27B GGUF on llama.cpp (tensor-split): the first brain that left room for a GPU voice; standby
+    │   └── shared/               the Service both llama.cpp brains share (pinned ClusterIP)
+    ├── searxng/                  private metasearch engine for the voice assistant's web search
     └── vllm/
         ├── qwen38-27b-single/    single 27B model, TP=2 across both GPUs
         │   └── with-voice/       overlay: 16k context, leaves ~3.2 GiB/card for the voice assistant

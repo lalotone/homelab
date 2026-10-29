@@ -1,19 +1,24 @@
+# The llama.cpp brain's address, whichever model serves it (qwen38-27b or gemma4-26b-a4b, one at a time).
 # OpenCode / clients: http://<heavy1 IP, LAN or Tailscale>:30801/v1
 # (30801, not vLLM's 30800: the two engines are Mode A alternatives and are swapped, not stacked)
+#
+# Still named llama-qwen38 (Qwen was the first brain here): renaming a Service means recreating it, and the pinned
+# ClusterIP below is what the voice assistant dials.
 apiVersion: v1
 kind: Service
 metadata:
   name: llama-qwen38
   labels:
-    app: llama-qwen38
+    llm-brain: llama-cpp
 spec:
   type: NodePort
   # Fixed ClusterIP: pods on heavy1 can't reach CoreDNS, so the voice assistant (k8s/esp32-homeai/with-gpu) dials
   # this IP directly. Pinned so it survives the Service being recreated. Must stay inside the service CIDR
   # (10.96.0.0/12); clusterIP is immutable, so changing it means deleting the Service first.
   clusterIP: 10.105.13.250
+  # Any llama.cpp brain pod: both deployments label their pods llm-brain=llama-cpp, and only one runs at a time.
   selector:
-    app: llama-qwen38
+    llm-brain: llama-cpp
   ports:
     - name: http
       port: 8000

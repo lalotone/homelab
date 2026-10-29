@@ -1,0 +1,16 @@
+# SearXNG settings: only what differs from the defaults (use_default_settings keeps the stock engines).
+# The secret_key isn't here: it comes from the SEARXNG_SECRET env var (Secret searxng, made by hand, see README.md).
+use_default_settings: true
+general:
+  instance_name: "homelab search"
+server:
+  limiter: false           # the bot limiter guards public instances; only the voice API calls this, in-cluster
+  public_instance: false
+  image_proxy: false
+search:
+  safe_search: 1           # moderate
+  formats:
+    - html
+    - json                 # what the voice API reads (/search?q=...&format=json)
+outgoing:
+  request_timeout: 3.0     # per engine: a voice answer can't wait for a slow engine

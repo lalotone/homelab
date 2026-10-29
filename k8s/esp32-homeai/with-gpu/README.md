@@ -1,7 +1,9 @@
 # Voice assistant, TTS on the GPU
 
-An overlay on [`..`](../) that moves Qwen3-TTS off the CPU onto a GPU share, and points the LLM at the
-[llama.cpp 27B](../../llama.cpp/qwen38-27b/) instead of vLLM.
+An overlay on [`..`](../) that moves Qwen3-TTS off the CPU onto a GPU share, and points the LLM at the llama.cpp
+brain instead of vLLM: [Gemma 4 26B A4B](../../llama.cpp/gemma4-26b-a4b/) since 2026-10-28, with the
+[Qwen 27B](../../llama.cpp/qwen38-27b/) on standby. Both sit behind the same pinned Service, so this overlay is the same
+for either.
 
 ```bash
 kubectl apply -k .              # GPU voice (llama.cpp brain + TTS on a GPU share)
@@ -17,7 +19,7 @@ kubectl apply -k ../deploy      # back to the CPU voice (rollback)
 | image | `:cuda` digest | `:cuda-tools` digest | current `app/` + faster-qwen3-tts (CUDA-graph TTS) + shazamio |
 | `TTS_DEVICE` | `cpu` | `cuda` | Qwen3-TTS in bf16 on the GPU |
 | `WHISPER_DEVICE` / `WHISPER_COMPUTE_TYPE` | `cpu` / `int8` | `cuda` / `float16` | STT 1.5 s → 0.1 s (measured), <1 GB VRAM |
-| `LLM_BASE_URL` | vLLM ClusterIP | llama.cpp ClusterIP (`10.105.13.250`, pinned) | the brain is now llama.cpp |
+| `LLM_BASE_URL` | vLLM ClusterIP | llama.cpp ClusterIP (`10.105.13.250`, pinned, either model) | the brain is now llama.cpp |
 
 Whisper shares the TTS's single GPU share (same process, same card), so it costs memory but no extra share.
 
@@ -57,9 +59,9 @@ the requested KV cache (~9 GiB/card), leaving ~6-7 GB — enough for TTS. Detail
 ## Setup
 
 1. Enable time-slicing (`k8s/nvidia-operator/time-slicing`) and confirm `nvidia-smi` works on heavy1.
-2. Make llama.cpp the brain and scale vLLM to 0 (see that folder's README).
+2. Make llama.cpp the brain and scale vLLM to 0 (see [gemma4-26b-a4b](../../llama.cpp/gemma4-26b-a4b/README.md)).
 3. Optional: create the home-location ConfigMap and the Telegram Secret ([../README.md](../README.md)).
-4. Apply the overlay: `kubectl apply -k .`. `LLM_BASE_URL` is llama.cpp's ClusterIP, pinned in its `service.yaml`,
+4. Apply the overlay: `kubectl apply -k .`. `LLM_BASE_URL` is llama.cpp's ClusterIP, pinned in `llama.cpp/shared/service.yaml`,
    so there's no manual step.
 5. Confirm the voice landed on a card with headroom:
 
@@ -71,4 +73,5 @@ the requested KV cache (~9 GiB/card), leaving ~6-7 GB — enough for TTS. Detail
 ## Notes
 
 - `runtimeClassName: nvidia` on a CPU-only pod is harmless but pointless — this overlay is the GPU variant.
-- If TTS OOMs on the GPU, the llama.cpp side has the cheap knob (`--ctx-size`), since the 27B weights dominate the card.
+- If TTS OOMs on the GPU, the llama.cpp side has the cheap knobs: `--tensor-split` (balance the cards, the voice can
+  land on either) and `--ctx-size`, since the model weights dominate the card.

@@ -1,0 +1,72 @@
+# SearXNG on heavy1, next to the voice API that calls it (cross-node pod traffic is broken since 2026-10-20).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: searxng
+  labels:
+    app: searxng
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: searxng
+  template:
+    metadata:
+      labels:
+        app: searxng
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: heavy1  # same node as its client, see the header
+      tolerations:
+        - key: nvidia.com/gpu           # heavy1 is tainted for GPU workloads; this needs no GPU but must run there
+          operator: Exists
+          effect: NoSchedule
+      # Public DNS instead of CoreDNS, as for the voice API: pods on heavy1 can't reach CoreDNS on k8s-master, and
+      # SearXNG must resolve the search engines' names. Drop this once cross-node traffic is fixed.
+      dnsPolicy: "None"
+      dnsConfig:
+        nameservers:
+          - 1.1.1.1
+          - 8.8.8.8
+      containers:
+        - name: searxng
+          image: searxng/searxng          # tag pinned in kustomization.yaml
+          env:
+            - name: SEARXNG_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: searxng
+                  key: secret_key
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 30
+            failureThreshold: 5
+          volumeMounts:
+            - name: settings
+              mountPath: /etc/searxng/settings.yml
+              subPath: settings.yml
+              readOnly: true
+            - name: cache
+              mountPath: /var/cache/searxng
+      volumes:
+        - name: settings
+          configMap:
+            name: searxng-settings
+        - name: cache
+          emptyDir: {}

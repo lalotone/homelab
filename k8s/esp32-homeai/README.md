@@ -6,7 +6,8 @@ answers with a 16 kHz WAV. While idle the board polls `/pending` for alarms, tim
 
 ```
 ESP32 (home WiFi) ──► heavy1:30880 (NodePort) ──► esp32-homeai-api (ns voice, GPU share: Whisper + TTS)
-                                                        ├──► llama-qwen38.llm:8000 (in-cluster 27B)
+                                                        ├──► llama-qwen38.llm:8000 (in-cluster llama.cpp: Gemma 4 26B A4B)
+                                                        ├──► searxng.searxng:8080 (private web search, ../searxng)
                                                         └──► internet: weather, news, Wikipedia, Shazam, Telegram
 ```
 
@@ -14,7 +15,7 @@ Two ways to run it:
 
 | | Brain | Voice | Answer time |
 |---|---|---|---|
-| [`with-gpu/`](with-gpu/) (**the intended setup**) | llama.cpp 27B, vLLM scaled to 0 | Whisper + Qwen3-TTS on a time-sliced GPU share | ~4-6 s |
+| [`with-gpu/`](with-gpu/) (**the intended setup**) | llama.cpp [Gemma 4 26B A4B](../llama.cpp/gemma4-26b-a4b/) (Qwen 27B on standby), vLLM scaled to 0 | Whisper + Qwen3-TTS on a time-sliced GPU share | ~4-6 s |
 | `deploy/` (CPU fallback) | vLLM 27B | on heavy1's CPU | ~48 s for 3 sentences |
 
 ## Before the first apply
@@ -22,7 +23,8 @@ Two ways to run it:
 1. **Pick the mode.** The GPU voice only fits next to llama.cpp, not vLLM (vLLM at its full config leaves ~0.6 GiB per
    card, and even the [`with-voice`](../vllm/qwen38-27b-single/with-voice/) overlay left only ~2.2 GiB, below
    Qwen3-TTS's ~2.6-3.25 GiB). For `with-gpu`: enable [time-slicing](../nvidia-operator/time-slicing/), deploy
-   [llama.cpp](../llama.cpp/qwen38-27b/) and scale vLLM to 0.
+   the llama.cpp brain ([Gemma 4](../llama.cpp/gemma4-26b-a4b/), or [Qwen 27B](../llama.cpp/qwen38-27b/)) and scale
+   vLLM to 0.
 2. **Host folders**, owned by the image's uid 1000:
 
    ```bash
@@ -137,7 +139,7 @@ kubectl -n voice rollout restart deploy/esp32-homeai-api
 Without the Secret the API runs normally and the phone tools answer "not set up".
 
 **Photos (`TELEGRAM_PHOTOS=true` here):** you can send the bot a photo and Rocky answers in the chat, using llama.cpp's
-vision ([`--mmproj`](../llama.cpp/qwen38-27b/README.md#vision)); the speaker can be asked about it for 10 minutes.
+vision (`--mmproj`, see [Gemma 4](../llama.cpp/gemma4-26b-a4b/README.md) / [Qwen](../llama.cpp/qwen38-27b/README.md#vision)); the speaker can be asked about it for 10 minutes.
 It's the only inbound path to the AI, so: only your private chat (chat and sender = `TELEGRAM_CHAT_ID`), photos only,
 EXIF/GPS stripped and kept in memory only, answered with **no tools** (text in a photo can't trigger actions), 10 per
 10 minutes, outgoing polling only. Full list: esp32-homeai's `api/README.md`, "Photos via Telegram".
