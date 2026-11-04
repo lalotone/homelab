@@ -45,6 +45,8 @@ and the shared Service ([`../shared`](../shared/), still named `llama-qwen38`, p
 selects that label, so the voice assistant's `LLM_BASE_URL` is the same whichever brain is up. `llama-server` answers
 whatever model name a client sends, so the voice's `LLM_MODEL` doesn't matter either.
 
+On a fresh cluster apply the parent, `kubectl apply -k k8s/llama.cpp`: it's the only one that includes the Service.
+
 **Roll back to Qwen** (as committed in git: flip the two `replicas`, then apply both):
 
 ```bash

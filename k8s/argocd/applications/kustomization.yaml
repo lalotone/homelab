@@ -1,0 +1,11 @@
+# The Argo CD Applications for this repo (../README.md).
+#   kubectl apply -k .
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - searxng.yaml
+  - esp32-homeai.yaml
+  - llama-cpp.yaml
+  - vllm.yaml
+  - gpu-time-slicing.yaml

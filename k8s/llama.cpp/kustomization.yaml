@@ -1,0 +1,11 @@
+# The whole llama.cpp brain: the Service plus both models (one running, one at replicas 0). One owner for the Service,
+# which is what Argo CD needs: an object rendered by two Applications makes them fight over it.
+#   kubectl apply -k .
+# Swapping brains: flip the two `replicas` (gemma4-26b-a4b/README.md, "Swap and roll back").
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - shared
+  - gemma4-26b-a4b
+  - qwen38-27b

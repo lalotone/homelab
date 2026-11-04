@@ -1,0 +1,15 @@
+# vLLM 27B, on standby (replicas 0: it needs both cards, like the llama.cpp brain). Also owns the 'llm' namespace.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vllm
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/lalotone/homelab
+    targetRevision: main
+    path: k8s/vllm/qwen38-27b-single/deploy
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: llm

@@ -2,3 +2,7 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: voice
+  annotations:
+    # Holds hand-made objects that aren't in Git (ConfigMap esp32-homeai-home, Secrets telegram-bot and rocky-cam):
+    # Argo CD must never delete it along with the Application.
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false

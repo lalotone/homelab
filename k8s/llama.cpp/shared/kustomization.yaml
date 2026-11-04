@@ -1,5 +1,5 @@
-# The Service both llama.cpp brains share (see service.yaml). Included by ../qwen38-27b and ../gemma4-26b-a4b, so
-# applying either keeps it in place. Careful: 'kubectl delete -k' on either of them deletes it too.
+# The Service both llama.cpp brains share (see service.yaml). Included only by the parent ../kustomization.yaml, so
+# applying or deleting one brain leaves it in place.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 

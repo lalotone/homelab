@@ -15,9 +15,9 @@ kind: Kustomization
 
 namespace: llm
 
+# The Service (pinned ClusterIP) is in ../shared, applied by the parent ../kustomization.yaml.
 resources:
   - deployment.yaml
-  - ../shared                           # the Service, shared with ../gemma4-26b-a4b
 
 # server-cuda, NOT server: the plain :server tag is the CPU-only build (it logs "no usable GPU found" and
 # silently ignores --n-gpu-layers/--tensor-split). server-cuda is still a moving tag; after a good start, pin

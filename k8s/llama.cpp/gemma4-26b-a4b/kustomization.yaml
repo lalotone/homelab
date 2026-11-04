@@ -8,9 +8,9 @@ kind: Kustomization
 
 namespace: llm
 
+# The Service (pinned ClusterIP) is in ../shared, applied by the parent ../kustomization.yaml.
 resources:
   - deployment.yaml
-  - ../shared                           # the Service (pinned ClusterIP), shared with ../qwen38-27b
 
 # Same llama.cpp image as ../qwen38-27b (server-cuda, the CUDA build). Gemma 4 support (text and vision) is in
 # build 11804, the one heavy1 has cached; pin it the same way as there once it's settled.

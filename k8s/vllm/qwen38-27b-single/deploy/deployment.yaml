@@ -12,7 +12,7 @@ metadata:
   labels:
     app: vllm-qwen38
 spec:
-  replicas: 1
+  replicas: 0                           # standby: llama.cpp's Gemma 4 is the brain, and both engines need both cards
   strategy:
     type: Recreate                      # exclusive GPUs: never two pods at once
   selector:

@@ -1,0 +1,16 @@
+# The llama.cpp brain: Gemma 4 (running), Qwen 27B (replicas 0) and the Service they share. One Application because
+# the Service must have one owner. Swap brains by flipping the two `replicas` in Git.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: llama-cpp
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/lalotone/homelab
+    targetRevision: main
+    path: k8s/llama.cpp
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: llm

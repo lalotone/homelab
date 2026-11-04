@@ -1,0 +1,15 @@
+# Only the time-slicing ConfigMap: the GPU Operator itself stays a Helm release (../../nvidia-operator).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gpu-time-slicing
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/lalotone/homelab
+    targetRevision: main
+    path: k8s/nvidia-operator/time-slicing
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gpu-operator

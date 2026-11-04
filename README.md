@@ -60,7 +60,7 @@ flowchart LR
 | [Web search](k8s/searxng/) | Private metasearch (no cookies, no account) for the voice assistant's `web_search` tool | SearXNG | ✅ Running |
 | [Cache-aware inference routing](k8s/vllm/qwen-llmd/) | Multi-replica serving with prefix-cache-aware load balancing, set up for A/B testing against round-robin | llm-d, Envoy `ext_proc`, Gateway API Inference Extension | 🧪 Experiment |
 | DNS & ad blocking | Network-wide DNS filtering | Pi-hole | 📋 Planned |
-| GitOps | Continuous reconciliation of this repository into the cluster | Argo CD | 📋 Planned |
+| [GitOps](k8s/argocd/) | Continuous reconciliation of this repository into the cluster, starting with manual sync | Argo CD | 🚧 Rolling out |
 | Observability | Metrics and dashboards for the cluster and inference (TTFT, cache hit rate, queues) | Prometheus, Grafana | 📋 Planned |
 
 ### Highlights
@@ -76,6 +76,7 @@ flowchart LR
 .
 ├── raspizero/                Pi Zero 2 W: camera for Rocky's eyes (rocky-cam), fallback WiFi AP
 └── k8s/
+    ├── argocd/applications/      Argo CD Applications for the projects below
     ├── nvidia-operator/          GPU Operator installation
     │   └── time-slicing/         4 shares per GPU, so small GPU pods fit next to vLLM
     ├── esp32-homeai/             ESP32 voice assistant API (Whisper + LLM + Qwen3-TTS voice)
