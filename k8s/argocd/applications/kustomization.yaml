@@ -9,3 +9,4 @@ resources:
   - llama-cpp.yaml
   - vllm.yaml
   - gpu-time-slicing.yaml
+  - grafana-dashboards.yaml

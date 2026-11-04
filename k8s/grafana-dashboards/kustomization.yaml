@@ -1,0 +1,18 @@
+# Grafana dashboards, loaded by the kube-prometheus-stack sidecar from ConfigMaps with this label (README.md).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: monitoring
+
+generatorOptions:
+  disableNameSuffixHash: true           # the sidecar watches for changes, so nothing needs a restart
+  labels:
+    grafana_dashboard: "1"
+
+configMapGenerator:
+  - name: homelab-dashboard-gpu
+    files:
+      - gpu.json
+  - name: homelab-dashboard-machines
+    files:
+      - machines.json

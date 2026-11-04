@@ -1,0 +1,19 @@
+# Only the dashboard ConfigMaps: Prometheus and Grafana themselves stay a Helm release.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana-dashboards
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/lalotone/homelab
+    targetRevision: main
+    path: k8s/grafana-dashboards
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: false   # the READMEs' quick kubectl shortcuts rely on this (../README.md)

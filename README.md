@@ -64,7 +64,7 @@ flowchart LR
 | [Cache-aware inference routing](k8s/vllm/qwen-llmd/) | Multi-replica serving with prefix-cache-aware load balancing, set up for A/B testing against round-robin | llm-d, Envoy `ext_proc`, Gateway API Inference Extension | 🧪 Experiment |
 | DNS & ad blocking | Network-wide DNS filtering | Pi-hole | 📋 Planned |
 | [GitOps](k8s/argocd/) | Continuous reconciliation of this repository into the cluster, with auto-sync | Argo CD | ✅ Running |
-| Observability | Metrics and dashboards for the cluster. Installed from the `kube-prometheus-stack` Helm chart in the `monitoring` namespace; not managed from this repo | Prometheus, Grafana, Helm | ✅ Running |
+| [Observability](k8s/grafana-dashboards/) | Metrics and dashboards for the cluster. Prometheus and Grafana come from the `kube-prometheus-stack` Helm chart in the `monitoring` namespace, not from this repo; the GPU and machine dashboards live here | Prometheus, Grafana, Helm | ✅ Running |
 
 ### Highlights
 
@@ -82,6 +82,7 @@ flowchart LR
     ├── argocd/applications/      Argo CD Applications for the projects below
     ├── nvidia-operator/          GPU Operator installation
     │   └── time-slicing/         4 shares per GPU, so small GPU pods fit next to vLLM
+    ├── grafana-dashboards/       Grafana dashboards for the GPUs and machines
     ├── esp32-homeai/             ESP32 voice assistant API (Whisper + LLM + Qwen3-TTS voice)
     │   ├── deploy/               the API on the CPU (Whisper + vLLM 27B + Qwen3-TTS)
     │   └── with-gpu/             overlay: TTS on a GPU share, LLM pointed at llama.cpp
