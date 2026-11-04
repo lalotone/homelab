@@ -7,8 +7,8 @@
 # Needs a llama.cpp brain (vLLM scaled to 0) and time-slicing enabled. Why the GPU only works next to llama.cpp (and
 # not next to vLLM): ../../llama.cpp/qwen38-27b/README.md.
 #
-# LLM_BASE_URL is llama.cpp's ClusterIP, pinned in ../../llama.cpp/shared/service.yaml (either brain). Not a DNS name: pods on
-# heavy1 can't reach CoreDNS (llama.cpp runs on heavy1 too, so it stays local — same as vLLM's did).
+# LLM_BASE_URL is llama.cpp's ClusterIP, pinned in ../../llama.cpp/shared/service.yaml (either brain). Not a DNS name, a
+# leftover from the CoreDNS outage (../README.md); llama.cpp runs on heavy1 too, so it stays local — same as vLLM's did.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -17,7 +17,7 @@ resources:
 
 # :cuda-tools = the ../deploy :cuda image plus the esp32-homeai repo's current app/ and newer deps (faster-qwen3-tts,
 # transformers 5, shazamio), built with its api/Dockerfile.thin as one thin layer, so heavy1 only pulls ~75 MB.
-# Rollback: `kubectl -n voice rollout undo deploy/esp32-homeai-api`, then restore the previous digest here.
+# Rollback: restore the previous digest here and push; the esp32-homeai app syncs it (../README.md).
 # TTS_ENGINE=qwen switches this same image to plain qwen_tts.
 images:
   - name: fooser/esp32-homeai-api   # the name after ../deploy's own images: rewrite

@@ -36,9 +36,9 @@ spec:
         - key: nvidia.com/gpu           # heavy1 is tainted for GPU workloads; tolerate it to run there anyway
           operator: Exists
           effect: NoSchedule
-      # Public DNS instead of CoreDNS: pods on heavy1 can't reach CoreDNS on k8s-master (cross-node pod traffic broken
-      # since the 2026-10-20 reboot), but direct egress works, and the LLM tools (weather, news, Wikipedia) need names
-      # resolved. In-cluster targets are reached by ClusterIP anyway. Drop this once cross-node traffic is fixed.
+      # Public DNS instead of CoreDNS: a leftover from the 2026-10-20..11-04 cross-node outage (fixed, see ../README.md),
+      # when the LLM tools (weather, news, Wikipedia) still needed names resolved. In-cluster targets are reached by
+      # ClusterIP anyway. Can be dropped now.
       dnsPolicy: "None"
       dnsConfig:
         nameservers:
@@ -61,9 +61,9 @@ spec:
                 name: esp32-homeai-home
                 optional: true
           env:
-            # vLLM's ClusterIP, not its DNS name: pods on heavy1 can't reach CoreDNS on k8s-master (cross-node pod
-            # traffic is broken since the 2026-10-20 reboot). vLLM runs on heavy1 too, so this path stays local.
-            # Once that's fixed: http://vllm-qwen38.llm.svc.cluster.local:8000/v1 (survives the Service being recreated).
+            # vLLM's ClusterIP, not its DNS name: a leftover from the cross-node outage (fixed, see ../README.md). vLLM
+            # runs on heavy1 too, so this path stays local. The DNS name would now work and survives the Service being
+            # recreated: http://vllm-qwen38.llm.svc.cluster.local:8000/v1
             - name: LLM_BASE_URL
               value: http://10.100.199.252:8000/v1
             - name: LLM_MODEL
@@ -98,7 +98,7 @@ spec:
             - name: STATE_DIR           # timers/reminders (alerts.json), on heavy1's disk so restarts keep them
               value: /state
             # Homelab tool: GPU metrics from the GPU Operator's DCGM exporter (ClusterIP, local to heavy1: not a DNS
-            # name, CoreDNS isn't reachable) and heavy1's disk, read through the hf-cache mount (same filesystem).
+            # name, a leftover from the outage) and heavy1's disk, read through the hf-cache mount (same filesystem).
             - name: HOMELAB_DCGM_URL
               value: http://10.106.203.228:9400/metrics
             - name: HOMELAB_DISK_PATH

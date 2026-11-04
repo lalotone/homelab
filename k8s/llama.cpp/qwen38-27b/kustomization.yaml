@@ -1,12 +1,9 @@
-# Mode A (llama.cpp brain):  kubectl apply -k .
+# Mode A (llama.cpp brain). Deployed through the parent, ../kustomization.yaml (Argo CD app llama-cpp).
 #   STANDBY since 2026-10-28 (replicas 0 in deployment.yaml): ../gemma4-26b-a4b is the llama.cpp brain now.
 #   Qwen3.8-27B GGUF across both GPUs -> http://<heavy1>:30801/v1  (inside: llama-qwen38.llm:8000)
 #
-# The 27B can only be served by one engine at a time (both need both cards). Swap, don't stack:
-#   kubectl -n llm scale deploy/vllm-qwen38 --replicas=0      # down the vLLM 27B first
-#   kubectl apply -k .
-# Back to vLLM:  kubectl -n llm scale deploy/llama-qwen38 --replicas=0
-#                kubectl -n llm scale deploy/vllm-qwen38  --replicas=1
+# The 27B can only be served by one engine at a time (both need both cards). Swap, don't stack: change `replicas` in
+# Git, one engine at a time (README.md).
 #
 # No Namespace on purpose: 'llm' is created by k8s/vllm/qwen38-27b-single/deploy. That way a
 # 'kubectl delete -k' here doesn't take the whole namespace with it.

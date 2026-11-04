@@ -7,9 +7,14 @@ managed from here.
 kubectl apply -k k8s/argocd/applications
 ```
 
-- **Manual sync on purpose.** There's no `syncPolicy`, so nothing changes until you press Sync. Turn on auto-sync per
-  app once it has proved itself, and leave self-heal off until the READMEs' `kubectl scale` and `rollout undo` steps
-  are rewritten as Git changes: self-heal would revert them.
+- **Auto-sync with prune, no self-heal.** A push to `main` deploys by itself, usually within about 3 minutes: a new image
+  digest restarts the voice, and a change to a brain's deployment reloads the model. Self-heal stays off because it
+  would revert the quick `kubectl scale` and `rollout undo` shortcuts in the READMEs. A shortcut stays in place until
+  the app next syncs, so change Git as well.
+- **Brain swaps are two pushes.** Flipping both `replicas` in one commit would start the new model before the old one
+  has freed the GPUs. Wait for the old pod to stop before the second push.
+- **Prune only removes what Argo CD tracks,** such as old hashed ConfigMaps. Applying these manifests is still by hand:
+  Argo CD doesn't manage its own Applications here.
 - **No `resources-finalizer`.** Deleting an Application leaves its workloads running.
 - **Hand-made objects aren't in Git** (the `esp32-homeai-home` ConfigMap and the `telegram-bot`, `rocky-cam` and
   `searxng` Secrets). Argo CD doesn't touch them, and the namespaces holding them carry

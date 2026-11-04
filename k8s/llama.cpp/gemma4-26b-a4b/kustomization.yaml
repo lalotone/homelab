@@ -1,5 +1,5 @@
 # The llama.cpp brain, Gemma 4 26B A4B (README.md). Only one brain at a time: ../qwen38-27b is on standby (replicas 0).
-#   kubectl apply -k .
+# Deployed through the parent, ../kustomization.yaml (Argo CD app llama-cpp).
 # Back to Qwen: README.md, "Roll back to Qwen".
 #
 # No Namespace on purpose: 'llm' is created by k8s/vllm/qwen38-27b-single/deploy.

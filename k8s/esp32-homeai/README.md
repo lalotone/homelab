@@ -61,26 +61,28 @@ Two ways to run it:
 
 ```bash
 kubectl kustomize with-gpu          # review (or deploy/ for the CPU fallback)
-kubectl apply -k with-gpu
+# Argo CD: commit and push; the esp32-homeai app syncs by itself (k8s/argocd). Without Argo CD: kubectl apply -k with-gpu
 kubectl -n voice logs -f deploy/esp32-homeai-api
 curl http://<heavy1 LAN IP>:30880/health
 ```
 
-Rollback after a bad image: `kubectl -n voice rollout undo deploy/esp32-homeai-api`, then restore the previous digest
-in `with-gpu/kustomization.yaml` so the next apply doesn't bring it back.
+Rollback after a bad image: restore the previous digest in `with-gpu/kustomization.yaml` and push. In a hurry,
+`kubectl -n voice rollout undo deploy/esp32-homeai-api` works first, but the app shows OutOfSync and its next sync brings
+the bad image back until the digest is restored.
 
 Then set the board's assistant URL to `http://<heavy1 LAN IP>:30880/talk` in its config portal.
 
-## Known workaround: pod networking on heavy1
+## Pod networking on heavy1: fixed, workarounds still in place
 
-Since the 2026-10-20 reboot, pods on heavy1 can't reach k8s-master: no CoreDNS (it runs there), and no internet.
-Hence `HF_HUB_OFFLINE=1` and `LLM_BASE_URL` set to vLLM's **ClusterIP** (`10.100.199.252`, local to heavy1) instead of
-`vllm-qwen38.llm.svc.cluster.local`. Once cross-node pod traffic works again, switch back to the DNS name: a ClusterIP
-changes if the Service is recreated.
+From 2026-10-20 to 2026-11-04, pods on heavy1 couldn't reach k8s-master, so no CoreDNS. The cause: k8s-master's kubelet
+registered its LAN IP while the other nodes used Tailscale IPs ([../argocd/README.md](../argocd/README.md)).
 
-The same breakage also takes out DNS (CoreDNS lives on k8s-master), while direct egress from the pod works. The LLM
-tools need names resolved, so the Deployment uses `dnsPolicy: None` with public resolvers (1.1.1.1, 8.8.8.8). Drop that
-too once cross-node traffic is fixed.
+These workarounds from that time are harmless and still in the manifests. They can go whenever convenient (each change
+restarts the pod):
+
+- `HF_HUB_OFFLINE=1`.
+- `LLM_BASE_URL` as a **ClusterIP** instead of a DNS name.
+- `dnsPolicy: None` with public resolvers (1.1.1.1, 8.8.8.8).
 
 ## LLM tools
 
@@ -153,8 +155,8 @@ llama.cpp, never leaving the house, with the same guardrails as Telegram photos.
 ## Design notes
 
 - **LLM in-cluster**: `LLM_BASE_URL` is a **ClusterIP** (llama.cpp's pinned `10.105.13.250` in `with-gpu`, vLLM's in
-  `deploy`) — not a DNS name, because pods on heavy1 can't reach CoreDNS (see the workaround above) — so there's no
-  NodePort or Tailscale hop.
+  `deploy`) — not a DNS name, a leftover from the CoreDNS outage (see the section above) — so there's no NodePort or
+  Tailscale hop.
   `LLM_ENABLE_THINKING=false` gives ~1 s replies.
 - **Voice choice** (Rocky's "golden" reference) was made by ear in A/B listening. Change it only after listening tests.
 - **Recreate strategy**: never two copies of the models loaded at once.

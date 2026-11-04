@@ -22,7 +22,7 @@
 
 ## Overview
 
-This repository is the single source of truth for my homelab. It is a small hybrid-architecture cluster (an arm64 control plane and an amd64 GPU worker) that I use to run day-to-day services and to try out cloud-native and AI-infrastructure tools before I'd trust them anywhere else.
+This repository is the single source of truth for my homelab. It is a small hybrid-architecture cluster (an arm64 control plane, an amd64 GPU worker and a small amd64 worker) that I use to run day-to-day services and to try out cloud-native and AI-infrastructure tools before I'd trust them anywhere else.
 
 All workloads are declarative and versioned: plain manifests composed with Kustomize, with images and upstream dependencies pinned to exact versions, and each design decision documented next to the code it explains.
 
@@ -34,6 +34,7 @@ flowchart LR
     subgraph tailnet["Tailscale tailnet"]
         subgraph cluster["Kubernetes · Cilium CNI"]
             cp["k8s-master<br/>Raspberry Pi · arm64<br/>control plane"]
+            e1["endurance-1<br/>amd64<br/>worker"]
             subgraph w["heavy1 · amd64 · GPU worker"]
                 gpu0["RTX 5060 Ti 16 GB"]
                 gpu1["RTX 5060 Ti 16 GB"]
@@ -42,25 +43,27 @@ flowchart LR
     end
     user -->|OpenAI API / kubectl| tailnet
     cp -. schedules .-> w
+    cp -. schedules .-> e1
 ```
 
 | Node | Role | Hardware |
 |---|---|---|
 | `k8s-master` | Control plane | Raspberry Pi (arm64) |
 | `heavy1` | Worker, GPU node (`nvidia.com/gpu` taint) | AMD Ryzen 5 5600G · 64 GB RAM · 2× NVIDIA RTX 5060 Ti 16 GB |
+| `endurance-1` | Worker, no GPU (runs Argo CD) | Intel · 4 threads · 8 GB RAM |
 
 ## Projects
 
 | Area | Description | Stack | Status |
 |---|---|---|---|
 | [GPU platform](k8s/nvidia-operator/) | GPU scheduling on Kubernetes using the host driver, with a `RuntimeClass` and device plugin | NVIDIA GPU Operator, Helm | ✅ Running |
-| [LLM serving](k8s/vllm/qwen38-27b-single/) | A 27B coding model split across two consumer GPUs with tensor parallelism | vLLM, NVFP4, MTP speculative decoding | ✅ Running |
+| [LLM serving](k8s/vllm/qwen38-27b-single/) | A 27B coding model split across two consumer GPUs with tensor parallelism | vLLM, NVFP4, MTP speculative decoding | 💤 Standby |
 | [LLM serving (llama.cpp)](k8s/llama.cpp/gemma4-26b-a4b/) | The voice's brain: Gemma 4 26B A4B (mixture of experts, ~3x faster than the dense 27B), with the [Qwen 27B](k8s/llama.cpp/qwen38-27b/) on standby. llama.cpp leaves ~6-7 GiB/GPU so the voice's TTS can run on a GPU | llama.cpp, GGUF Q4_K_XL, tensor-split | ✅ Running |
 | [Voice assistant](k8s/esp32-homeai/) | Backend for an ESP32 smart speaker: speech-to-text, the in-cluster LLM, and a cloned movie-character voice (on a GPU share next to llama.cpp, or on the CPU) | faster-whisper, Qwen3-TTS 0.6B, FastAPI | ✅ Running |
 | [Web search](k8s/searxng/) | Private metasearch (no cookies, no account) for the voice assistant's `web_search` tool | SearXNG | ✅ Running |
 | [Cache-aware inference routing](k8s/vllm/qwen-llmd/) | Multi-replica serving with prefix-cache-aware load balancing, set up for A/B testing against round-robin | llm-d, Envoy `ext_proc`, Gateway API Inference Extension | 🧪 Experiment |
 | DNS & ad blocking | Network-wide DNS filtering | Pi-hole | 📋 Planned |
-| [GitOps](k8s/argocd/) | Continuous reconciliation of this repository into the cluster, starting with manual sync | Argo CD | 🚧 Rolling out |
+| [GitOps](k8s/argocd/) | Continuous reconciliation of this repository into the cluster, with auto-sync | Argo CD | ✅ Running |
 | Observability | Metrics and dashboards for the cluster and inference (TTFT, cache hit rate, queues) | Prometheus, Grafana | 📋 Planned |
 
 ### Highlights
@@ -103,7 +106,7 @@ Each project is self-contained, with its own `kustomization.yaml` (or install sc
 # Render and review before applying
 kubectl kustomize k8s/vllm/qwen38-27b-single/deploy
 
-# Apply
+# Apply: commit and push, and Argo CD syncs it (k8s/argocd). Without an app:
 kubectl apply -k k8s/vllm/qwen38-27b-single/deploy
 ```
 
@@ -115,5 +118,5 @@ kubectl apply -k k8s/vllm/qwen38-27b-single/deploy
 - [x] llm-d cache-aware router (standalone mode)
 - [ ] Load test: llm-d vs round-robin (TTFT p50/p95, prefix-cache hit rate)
 - [ ] Prometheus + Grafana
-- [ ] Argo CD (GitOps for this repository)
+- [x] Argo CD (GitOps for this repository)
 - [ ] Pi-hole

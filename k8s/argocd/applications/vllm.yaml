@@ -13,3 +13,7 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: llm
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: false   # the READMEs' quick kubectl shortcuts rely on this (../README.md)

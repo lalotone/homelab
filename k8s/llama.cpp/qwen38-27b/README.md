@@ -23,18 +23,12 @@ That's the whole point: this deployment exists so
 
 ## It's a swap, not a stack
 
-Both engines need both physical cards. Never run both. To switch the brain:
-
-```bash
-kubectl -n llm scale deploy/vllm-qwen38 --replicas=0    # down vLLM first
-kubectl apply -k .                                      # up llama.cpp
-# ... or back:
-kubectl -n llm scale deploy/llama-qwen38 --replicas=0
-kubectl -n llm scale deploy/vllm-qwen38  --replicas=1
-```
+Both engines need both physical cards. Never run both. To switch the brain, change `replicas` in Git, one engine at a
+time: first set the running one to 0 and push, wait for Argo CD (`llama-cpp` or `vllm` app) to stop its pod, then set the
+new one to 1 and push. Steps: [the Gemma README](../gemma4-26b-a4b/README.md), "Swap and roll back".
 
 When it's the brain, point the voice at it (the `with-gpu` overlay does this): `LLM_BASE_URL` → this service's
-pinned ClusterIP `10.105.13.250`, port 8000 (pinned in `../shared/service.yaml` because pods on heavy1 can't reach CoreDNS).
+pinned ClusterIP `10.105.13.250`, port 8000 (pinned in `../shared/service.yaml`, a leftover from the CoreDNS outage).
 NodePort 30801 for outside the cluster.
 
 ## Before the first apply

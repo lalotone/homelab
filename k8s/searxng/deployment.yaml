@@ -1,4 +1,4 @@
-# SearXNG on heavy1, next to the voice API that calls it (cross-node pod traffic is broken since 2026-10-20).
+# SearXNG on heavy1, next to the voice API that calls it (placed there during the 2026-10-20..11-04 cross-node outage).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -21,8 +21,8 @@ spec:
         - key: nvidia.com/gpu           # heavy1 is tainted for GPU workloads; this needs no GPU but must run there
           operator: Exists
           effect: NoSchedule
-      # Public DNS instead of CoreDNS, as for the voice API: pods on heavy1 can't reach CoreDNS on k8s-master, and
-      # SearXNG must resolve the search engines' names. Drop this once cross-node traffic is fixed.
+      # Public DNS instead of CoreDNS, as for the voice API: a leftover from the cross-node outage (fixed), when SearXNG
+      # still had to resolve the search engines' names. Can be dropped now.
       dnsPolicy: "None"
       dnsConfig:
         nameservers:

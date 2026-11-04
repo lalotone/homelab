@@ -12,8 +12,8 @@ metadata:
     llm-brain: llama-cpp
 spec:
   type: NodePort
-  # Fixed ClusterIP: pods on heavy1 can't reach CoreDNS, so the voice assistant (k8s/esp32-homeai/with-gpu) dials
-  # this IP directly. Pinned so it survives the Service being recreated. Must stay inside the service CIDR
+  # Fixed ClusterIP: the voice assistant (k8s/esp32-homeai/with-gpu) dials this IP directly, a leftover from the
+  # CoreDNS outage. Pinned so it survives the Service being recreated. Must stay inside the service CIDR
   # (10.96.0.0/12); clusterIP is immutable, so changing it means deleting the Service first.
   clusterIP: 10.105.13.250
   # Any llama.cpp brain pod: both deployments label their pods llm-brain=llama-cpp, and only one runs at a time.

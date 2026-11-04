@@ -36,8 +36,8 @@ kubectl -n voice exec deploy/esp32-homeai-api -- python -c "import httpx; \
 
 | Choice | Why |
 |---|---|
-| Runs on heavy1, pinned ClusterIP `10.105.13.251` | pods on heavy1 can't reach CoreDNS or pods on other nodes (cross-node traffic broken since 2026-10-20), so client and server share the node and the client dials an IP. Next to the brain's `10.105.13.250`. |
-| Public DNS (1.1.1.1, 8.8.8.8) in the pod | same reason: it must resolve the search engines' names. Drop it (and the nodeSelector) once cross-node traffic is fixed. |
+| Runs on heavy1, pinned ClusterIP `10.105.13.251` | built during the 2026-10-20..11-04 cross-node outage (fixed, see [../esp32-homeai/README.md](../esp32-homeai/README.md)), so client and server share the node and the client dials an IP. Next to the brain's `10.105.13.250`. |
+| Public DNS (1.1.1.1, 8.8.8.8) in the pod | same outage: it had to resolve the search engines' names. It and the nodeSelector can be dropped now. |
 | `settings.yml`: `use_default_settings` + a few changes | the stock engines, plus: the `json` format on (what the API reads), the bot limiter off (it's for public instances and would need Valkey), safe search moderate, a 3 s engine timeout (a voice answer can't wait for a slow engine). |
 | Image pinned to a date tag | SearXNG has no versions, only daily builds; pinned to one at least two weeks old. Bump `newTag` in `kustomization.yaml`. |
 

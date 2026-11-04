@@ -47,15 +47,12 @@ whatever model name a client sends, so the voice's `LLM_MODEL` doesn't matter ei
 
 On a fresh cluster apply the parent, `kubectl apply -k k8s/llama.cpp`: it's the only one that includes the Service.
 
-**Roll back to Qwen** (as committed in git: flip the two `replicas`, then apply both):
+**Roll back to Qwen**, in two commits so Gemma has freed the GPUs before Qwen starts:
 
-```bash
-# in ../qwen38-27b/deployment.yaml: replicas: 1      in ./deployment.yaml: replicas: 0
-kubectl apply -k k8s/llama.cpp/gemma4-26b-a4b       # Gemma down first: frees the GPUs
-kubectl apply -k k8s/llama.cpp/qwen38-27b           # Qwen up (~2 min to load)
-```
+1. In `./deployment.yaml`, set `replicas: 0` and push. Argo CD's `llama-cpp` app syncs it; wait for the pod to stop.
+2. In `../qwen38-27b/deployment.yaml`, set `replicas: 1` and push (~2 min to load).
 
-Quick, without editing files (git then disagrees until you flip the replicas):
+Quick, without editing files (`llama-cpp` shows OutOfSync until you flip the replicas, and its next sync undoes this):
 
 ```bash
 kubectl -n llm scale deploy/llama-gemma4 --replicas=0

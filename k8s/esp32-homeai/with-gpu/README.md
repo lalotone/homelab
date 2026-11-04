@@ -10,6 +10,9 @@ kubectl apply -k .              # GPU voice (llama.cpp brain + TTS on a GPU shar
 kubectl apply -k ../deploy      # back to the CPU voice (rollback)
 ```
 
+Argo CD tracks and auto-syncs this overlay (the `esp32-homeai` app), so a change here is a commit and a push. Going back to the
+CPU voice for good also means pointing the app's `path` at `../deploy` in `k8s/argocd/applications/esp32-homeai.yaml`.
+
 ## What changes
 
 | Field | `../deploy` (CPU) | `with-gpu` | Why |
@@ -40,14 +43,14 @@ step as one CUDA graph: **2.8x realtime** on the 5060 Ti, ~+0.4 GiB VRAM. Measur
 qwen-tts for qwen-tts-hf + faster-qwen3-tts 0.5.4, pins transformers 5.15.1 (newer fails with
 `MimiConfig ... rope_theta`), adds shazamio, and copies the repo's `app/`. Build and pin steps: [../README.md](../README.md).
 
-Rollback:
+Rollback: restore the previous digest in `kustomization.yaml` and push. In a hurry:
 
 ```bash
 kubectl -n voice rollout undo deploy/esp32-homeai-api   # previous ReplicaSet
 ```
 
-then restore the previous digest in `kustomization.yaml` so the next apply doesn't bring it back. `TTS_ENGINE=qwen`
-switches the same image back to plain qwen_tts.
+then restore the digest too, or the next sync brings the bad image back. `TTS_ENGINE=qwen` switches the same image back
+to plain qwen_tts.
 
 ## Why it only fits next to llama.cpp, not vLLM
 
