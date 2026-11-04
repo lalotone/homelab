@@ -64,7 +64,7 @@ flowchart LR
 | [Cache-aware inference routing](k8s/vllm/qwen-llmd/) | Multi-replica serving with prefix-cache-aware load balancing, set up for A/B testing against round-robin | llm-d, Envoy `ext_proc`, Gateway API Inference Extension | 🧪 Experiment |
 | DNS & ad blocking | Network-wide DNS filtering | Pi-hole | 📋 Planned |
 | [GitOps](k8s/argocd/) | Continuous reconciliation of this repository into the cluster, with auto-sync | Argo CD | ✅ Running |
-| Observability | Metrics and dashboards for the cluster and inference (TTFT, cache hit rate, queues) | Prometheus, Grafana | 📋 Planned |
+| Observability | Metrics and dashboards for the cluster. Installed from the `kube-prometheus-stack` Helm chart in the `monitoring` namespace; not managed from this repo | Prometheus, Grafana, Helm | ✅ Running |
 
 ### Highlights
 
@@ -117,6 +117,6 @@ kubectl apply -k k8s/vllm/qwen38-27b-single/deploy
 - [x] vLLM serving on consumer Blackwell GPUs
 - [x] llm-d cache-aware router (standalone mode)
 - [ ] Load test: llm-d vs round-robin (TTFT p50/p95, prefix-cache hit rate)
-- [ ] Prometheus + Grafana
+- [x] Prometheus + Grafana (Helm chart, not in this repo)
 - [x] Argo CD (GitOps for this repository)
 - [ ] Pi-hole
