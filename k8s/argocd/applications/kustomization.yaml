@@ -10,3 +10,4 @@ resources:
   - vllm.yaml
   - gpu-time-slicing.yaml
   - grafana-dashboards.yaml
+  - pihole.yaml

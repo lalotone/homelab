@@ -1,0 +1,78 @@
+# Pi-hole on endurance-1's own network (hostNetwork): the router hands out endurance-1's LAN IP as DNS, so Pi-hole
+# must answer on port 53 of the node itself. No Service needed. Pinned to endurance-1 because that IP is fixed.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pihole
+  labels:
+    app: pihole
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate              # two pods can't both hold port 53 on the node
+  selector:
+    matchLabels:
+      app: pihole
+  template:
+    metadata:
+      labels:
+        app: pihole
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: endurance-1
+      hostNetwork: true
+      dnsPolicy: Default        # its own lookups go through the node, not CoreDNS
+      containers:
+        - name: pihole
+          image: pihole/pihole  # tag pinned in kustomization.yaml
+          env:
+            - name: TZ
+              value: Europe/Madrid
+            - name: FTLCONF_webserver_api_password
+              valueFrom:
+                secretKeyRef:
+                  name: pihole
+                  key: password
+            # Web UI on 8081, not 80, to stay clear of anything else on the node: http://<endurance-1>:8081/admin
+            - name: FTLCONF_webserver_port
+              value: "8081"
+            # Upstreams are public resolvers, not the router: lookups from endurance-1 to the router time out
+            # (same reason CoreDNS forwards to 1.1.1.1).
+            - name: FTLCONF_dns_upstreams
+              value: "1.1.1.1;9.9.9.9"
+            # ALL, not LOCAL: Tailscale clients (100.x) aren't on a local subnet. Fine as long as port 53 isn't
+            # forwarded from the internet.
+            - name: FTLCONF_dns_listeningMode
+              value: ALL
+          ports:
+            - name: dns-udp
+              containerPort: 53
+              protocol: UDP
+            - name: dns-tcp
+              containerPort: 53
+              protocol: TCP
+            - name: http
+              containerPort: 8081
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          readinessProbe:
+            tcpSocket:
+              port: 53
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 53
+            periodSeconds: 30
+            failureThreshold: 5
+          volumeMounts:
+            - name: config
+              mountPath: /etc/pihole   # blocklists, settings and query history survive restarts
+      volumes:
+        - name: config
+          hostPath:
+            path: /var/lib/pihole
+            type: DirectoryOrCreate
