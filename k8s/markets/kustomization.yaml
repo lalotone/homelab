@@ -1,0 +1,23 @@
+# Markets exporter: stock, crypto, gold and currency prices for Grafana's "Homelab / Markets" dashboard. README.md.
+#   kubectl apply -k .
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: markets
+
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - servicemonitor.yaml
+
+configMapGenerator:
+  - name: markets-exporter
+    files:
+      - exporter.py
+      - symbols.json          # edit to add or remove symbols; the hash suffix restarts the pod
+
+# Pinned to a build at least two weeks old.
+images:
+  - name: python
+    newTag: 3.13.17-slim

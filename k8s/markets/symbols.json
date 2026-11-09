@@ -1,0 +1,21 @@
+[
+  {"symbol": "IWDA.AS",  "name": "MSCI World",       "group": "Indexes"},
+  {"symbol": "^GSPC",    "name": "S&P 500",          "group": "Indexes"},
+  {"symbol": "^NDX",     "name": "Nasdaq 100",       "group": "Indexes"},
+  {"symbol": "EIMI.L",   "name": "Emerging Markets", "group": "Indexes"},
+  {"symbol": "AAPL",     "name": "Apple",            "group": "Tech"},
+  {"symbol": "MSFT",     "name": "Microsoft",        "group": "Tech"},
+  {"symbol": "NVDA",     "name": "Nvidia",           "group": "Tech"},
+  {"symbol": "GOOGL",    "name": "Alphabet",         "group": "Tech"},
+  {"symbol": "AMZN",     "name": "Amazon",           "group": "Tech"},
+  {"symbol": "META",     "name": "Meta",             "group": "Tech"},
+  {"symbol": "AVGO",     "name": "Broadcom",         "group": "Tech"},
+  {"symbol": "TSM",      "name": "TSMC",             "group": "Tech"},
+  {"symbol": "AMD",      "name": "AMD",              "group": "Tech"},
+  {"symbol": "INTC",     "name": "Intel",            "group": "Tech"},
+  {"symbol": "BTC-EUR",  "name": "Bitcoin",          "group": "Crypto"},
+  {"symbol": "ETH-EUR",  "name": "Ethereum",         "group": "Crypto"},
+  {"symbol": "GC=F",     "name": "Gold",             "group": "Commodities & FX"},
+  {"symbol": "EURUSD=X", "name": "EUR/USD",          "group": "Commodities & FX"},
+  {"symbol": "^VIX",     "name": "VIX (fear index)", "group": "Risk"}
+]

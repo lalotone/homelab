@@ -11,3 +11,4 @@ resources:
   - gpu-time-slicing.yaml
   - grafana-dashboards.yaml
   - pihole.yaml
+  - markets.yaml

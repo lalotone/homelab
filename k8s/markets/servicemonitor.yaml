@@ -1,0 +1,14 @@
+# Picked up by the Helm-installed Prometheus, which watches ServiceMonitors in every namespace.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: markets-exporter
+  labels:
+    app: markets-exporter
+spec:
+  selector:
+    matchLabels:
+      app: markets-exporter
+  endpoints:
+    - port: metrics
+      interval: 60s           # the exporter refreshes every 5 minutes; this just keeps the graphs smooth

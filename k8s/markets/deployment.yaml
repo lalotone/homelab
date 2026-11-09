@@ -1,0 +1,66 @@
+# Plain Python (standard library only) running exporter.py from the ConfigMap; no image to build.
+# No nodeSelector: it needs no GPU, so it lands wherever there's room (endurance-1 today).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: markets-exporter
+  labels:
+    app: markets-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: markets-exporter
+  template:
+    metadata:
+      labels:
+        app: markets-exporter
+    spec:
+      # Fewer and faster DNS tries: with the default ndots:5 every Yahoo lookup first walks 4 search domains, and each
+      # packet the cluster drops costs 5 seconds.
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "1"
+          - name: timeout
+            value: "2"
+          - name: attempts
+            value: "3"
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534        # nobody
+      containers:
+        - name: exporter
+          image: python         # tag pinned in kustomization.yaml
+          command: ["python", "-u", "/config/exporter.py"]
+          env:
+            - name: FETCH_SECONDS
+              value: "300"      # 9 symbols every 5 minutes is gentle on Yahoo's free API
+          ports:
+            - name: metrics
+              containerPort: 9101
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            periodSeconds: 60
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: config
+              mountPath: /config
+      volumes:
+        - name: config
+          configMap:
+            name: markets-exporter

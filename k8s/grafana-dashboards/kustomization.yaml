@@ -16,3 +16,6 @@ configMapGenerator:
   - name: homelab-dashboard-machines
     files:
       - machines.json
+  - name: homelab-dashboard-markets
+    files:
+      - markets.json
