@@ -24,7 +24,7 @@ metadata:
   labels:
     app: llama-qwen38
 spec:
-  replicas: 0                           # standby: Gemma 4 is the brain (see the header)
+  replicas: 1                           # the brain again since 2026-11-16 (Gemma 4 at 0)
   strategy:
     type: Recreate                      # exclusive GPUs: never two pods at once
   selector:
