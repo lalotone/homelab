@@ -15,7 +15,7 @@ metadata:
   labels:
     app: llama-gemma4
 spec:
-  replicas: 1
+  replicas: 0
   strategy:
     type: Recreate                      # exclusive GPUs: never two pods at once
   selector:
