@@ -24,7 +24,7 @@ metadata:
   labels:
     app: llama-qwen38
 spec:
-  replicas: 1                           # the brain again since 2026-11-16 (Gemma 4 at 0)
+  replicas: 0                           # paused 2026-11-17 with Rocky: GPUs lent to vLLM / KServe / llm-d
   strategy:
     type: Recreate                      # exclusive GPUs: never two pods at once
   selector:
