@@ -1,0 +1,18 @@
+# TEMPORARY front door until the Envoy Gateway (llm-d, keys, quotas) in ../README.md "Target" exists; then delete it.
+# OpenCode and other clients outside the cluster: http://<heavy1, LAN or Tailscale>:30802/v1
+# KServe only makes a ClusterIP Service (qwen38-27b-predictor); this one selects the same pods.
+# (30800 is the plain vLLM Deployment's NodePort, 30801 llama.cpp's.)
+apiVersion: v1
+kind: Service
+metadata:
+  name: qwen38-27b-nodeport
+  namespace: models
+spec:
+  type: NodePort
+  selector:
+    serving.kserve.io/inferenceservice: qwen38-27b
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080                  # vLLM's port in the kserve-vllmserver runtime
+      nodePort: 30802

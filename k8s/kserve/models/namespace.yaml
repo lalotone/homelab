@@ -1,0 +1,4 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: models          # KServe models live here, apart from Rocky's llm and voice namespaces

@@ -65,6 +65,7 @@ flowchart LR
 | [DNS & ad blocking](k8s/pihole/) | Network-wide DNS filtering for the house, on endurance-1's host network | Pi-hole | ✅ Running |
 | [GitOps](k8s/argocd/) | Continuous reconciliation of this repository into the cluster, with auto-sync | Argo CD | ✅ Running |
 | [Observability](k8s/grafana-dashboards/) | Metrics and dashboards for the cluster. Prometheus and Grafana come from the `kube-prometheus-stack` Helm chart in the `monitoring` namespace, not from this repo; the GPU, machine and markets dashboards live here | Prometheus, Grafana, Helm | ✅ Running |
+| [Company AI platform](k8s/kserve/) | A self-hosted "OpenAI" like a big company's: one endpoint, several models, API keys and token quotas per team, usage dashboard. KServe is installed (Standard mode) and serves Qwen3.8-27B on vLLM; the rest is designed | KServe `LLMInferenceService`, llm-d, Envoy AI Gateway, vLLM | 🧪 Experiment |
 | [Markets](k8s/markets/) | Prices and performance of world indexes, crypto, gold and EUR/USD for a Grafana dashboard | Python exporter, Yahoo Finance | ✅ Running |
 
 ### Highlights
@@ -85,6 +86,7 @@ flowchart LR
     │   └── time-slicing/         4 shares per GPU, so small GPU pods fit next to vLLM
     ├── grafana-dashboards/       Grafana dashboards for the GPUs, machines and markets
     ├── markets/                  exporter of market prices (Yahoo Finance) for the Markets dashboard
+    ├── kserve/                   KServe install + design of the company-style OpenAI platform
     ├── pihole/                   Pi-hole: ad blocking DNS for the house, on endurance-1
     ├── esp32-homeai/             ESP32 voice assistant API (Whisper + LLM + Qwen3-TTS voice)
     │   ├── deploy/               the API on the CPU (Whisper + vLLM 27B + Qwen3-TTS)
@@ -125,3 +127,5 @@ kubectl apply -k k8s/vllm/qwen38-27b-single/deploy
 - [x] Argo CD (GitOps for this repository)
 - [x] Pi-hole
 - [x] Markets dashboard (indexes, crypto, gold, FX)
+- [x] KServe (Standard mode)
+- [ ] Company-style OpenAI platform: llm-d + Envoy AI Gateway, keys and token quotas per team

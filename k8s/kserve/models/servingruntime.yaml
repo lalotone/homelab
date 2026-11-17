@@ -1,0 +1,47 @@
+# Our own vLLM runtime: KServe's kserve-vllmserver minus --model/--served-model-name, which the InferenceService
+# sets itself. KServe v0.21.0 appends the InferenceService's args to the runtime's without removing duplicates, so
+# with the built-in runtime vLLM got --model=/mnt/models (empty: no storageUri) and crashed. (Master de-duplicates.)
+apiVersion: serving.kserve.io/v1alpha1
+kind: ServingRuntime
+metadata:
+  name: vllm-hf-cache
+  namespace: models
+  annotations:
+    prometheus.kserve.io/path: /metrics
+    prometheus.kserve.io/port: "8080"
+spec:
+  supportedModelFormats:
+    - name: vLLM
+      version: "1"
+      autoSelect: false                 # only for InferenceServices that name it
+  containers:
+    - name: kserve-container
+      image: vllm/vllm-openai:v0.30.0
+      command: ["vllm", "serve"]
+      args:
+        - --port=8080
+      env:
+        - name: VLLM_WORKER_MULTIPROC_METHOD
+          value: spawn
+      ports:
+        - containerPort: 8080
+          protocol: TCP
+      startupProbe:                     # first start: weights + JIT can take a while
+        httpGet:
+          path: /v1/models
+          port: 8080
+        periodSeconds: 10
+        failureThreshold: 180           # 30 min
+      readinessProbe:
+        httpGet:
+          path: /v1/models
+          port: 8080
+        periodSeconds: 10
+      volumeMounts:
+        - name: devshm
+          mountPath: /dev/shm
+  volumes:
+    - name: devshm                      # TP=2 + NCCL: the default 64 MB isn't enough
+      emptyDir:
+        medium: Memory
+        sizeLimit: 16Gi
