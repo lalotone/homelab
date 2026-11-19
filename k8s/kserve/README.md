@@ -118,7 +118,7 @@ and each model's EPP plugs into it.
 
 ```mermaid
 flowchart LR
-    subgraph clients["Clients over Tailscale"]
+    subgraph clients["Clients · LAN or Tailscale"]
         a["Team A app<br/>key A"]
         b["Team B app<br/>key B"]
         c["OpenWebUI / OpenCode<br/>key C"]
@@ -183,7 +183,7 @@ flowchart LR
   (above) takes both cards. More models (coder, embeddings) would have to be small and share the cards through
   time-slicing with a fixed `--gpu-memory-utilization` each, and time-slicing doesn't split VRAM, so the 27B would
   have to shrink first.
-- **Entry point: NodePort over Tailscale**, like the other services. Envoy Gateway creates the gateway's Service as
+- **Entry point: NodePort** (LAN, or Tailscale from the laptop), like the other services. Envoy Gateway creates the gateway's Service as
   a LoadBalancer by default; an `EnvoyProxy` resource on the Gateway switches it to NodePort.
 - **Dashboard** in the existing Grafana (`../grafana-dashboards/`), next to the GPU dashboard.
 

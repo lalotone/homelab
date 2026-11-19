@@ -26,8 +26,11 @@ kubectl apply -k k8s/argocd/applications
 
 Neither of these lives in Git:
 
-- **Every node's kubelet uses its Tailscale IP** (`KUBELET_EXTRA_ARGS=--node-ip=<tailscale IP>` in
-  `/etc/default/kubelet`). With a mix of LAN and Tailscale node IPs, Cilium's tunnels to that node fail, and pods can't
-  reach CoreDNS.
+- **Every node uses its static LAN IP** (`KUBELET_EXTRA_ARGS=--node-ip=<LAN IP>` in `/etc/default/kubelet`), and so
+  does the API server (`controlPlaneEndpoint`, `--advertise-address`, Cilium's `k8sServiceHost`, Cilium MTU 1450). All
+  nodes must use the same kind of IP: with a mix of LAN and Tailscale node IPs, Cilium's tunnels to that node fail, and
+  pods can't reach CoreDNS. Until 2026-11-19 the cluster ran over Tailscale (MTU 1230, flaky links); Tailscale is now
+  only for reaching the cluster from the laptop, so the API server certificate keeps the master's Tailscale IP and
+  MagicDNS name as extra SANs.
 - **CoreDNS forwards to public DNS** (`forward . 1.1.1.1 8.8.8.8` in the `kube-system/coredns` ConfigMap), because a
   CoreDNS pod on a worker timed out on the router. A `kubeadm upgrade` may reset this.

@@ -22,6 +22,7 @@ FORCE_UPGRADE=true UPDATE_CONFIGMAP_IMAGES=true ./hack/kserve-install.sh --kusto
 
 # Run the controllers on k8s-master, next to the API server. On endurance-1 (WiFi) they lost the API connection
 # ("http2: client connection lost"), lost their leader lease and crash-looped every ~5 min (2026-11-17).
+# That was over Tailscale; the cluster runs on the LAN since 2026-11-19, but the master stays the safer home.
 PATCH='{"spec":{"template":{"spec":{"nodeSelector":{"kubernetes.io/hostname":"k8s-master"},"tolerations":[{"key":"node-role.kubernetes.io/control-plane","operator":"Exists","effect":"NoSchedule"}]}}}}'
 kubectl -n kserve patch deploy kserve-controller-manager --type merge -p "$PATCH"
 for d in cert-manager cert-manager-cainjector cert-manager-webhook; do

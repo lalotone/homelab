@@ -31,7 +31,7 @@ All workloads are declarative and versioned: plain manifests composed with Kusto
 ```mermaid
 flowchart LR
     user([Clients<br/>laptop · OpenWebUI · OpenCode])
-    subgraph tailnet["Tailscale tailnet"]
+    subgraph lan["Home LAN · static IPs"]
         subgraph cluster["Kubernetes · Cilium CNI"]
             cp["k8s-master<br/>Raspberry Pi · arm64<br/>control plane"]
             e1["endurance-1<br/>amd64<br/>worker"]
@@ -41,7 +41,7 @@ flowchart LR
             end
         end
     end
-    user -->|OpenAI API / kubectl| tailnet
+    user -->|"OpenAI API / kubectl<br/>(LAN, or Tailscale away from home)"| lan
     cp -. schedules .-> w
     cp -. schedules .-> e1
 ```
@@ -118,7 +118,7 @@ kubectl apply -k k8s/vllm/qwen38-27b-single/deploy
 
 ## Roadmap
 
-- [x] Kubernetes cluster over Tailscale with Cilium
+- [x] Kubernetes cluster on the home LAN with Cilium (Tailscale only for remote access)
 - [x] NVIDIA GPU Operator
 - [x] vLLM serving on consumer Blackwell GPUs
 - [x] llm-d cache-aware router (standalone mode)
