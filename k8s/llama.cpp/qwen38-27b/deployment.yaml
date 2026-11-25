@@ -1,8 +1,7 @@
 # Qwen3.8-27B Unleashed (uncensored GGUF, UD-Q6_K) on heavy1 with llama.cpp, split across the 2× RTX 5060 Ti.
 # From outsourc-e/Qwen3.8-27B-Unleashed-GGUF since 2026-11-25; before, unsloth/Qwen3.8-27B-GGUF UD-Q4_K_XL.
 #
-# STANDBY since 2026-10-28: Gemma 4 26B A4B (../gemma4-26b-a4b) is the brain now, ~3x faster. Kept, scaled to 0, to
-# roll back: set replicas 0 there and push, then 1 here and push (Gemma first, so its GPUs are free). See its README.
+# Running since 2026-11-25; Gemma 4 (../gemma4-26b-a4b) is at 0. Only one brain at a time (both need both cards).
 #
 # This is the Mode A alternative to k8s/vllm/qwen38-27b-single. Both engines need both
 # physical cards, so only one can run at a time: swap them by changing `replicas` in Git (README.md).
@@ -28,7 +27,7 @@ metadata:
   labels:
     app: llama-qwen38
 spec:
-  replicas: 0                           # paused 2026-11-17 with Rocky: GPUs lent to vLLM / KServe / llm-d
+  replicas: 1                           # running since 2026-11-25 (Rocky's voice still paused)
   strategy:
     type: Recreate                      # exclusive GPUs: never two pods at once
   selector:
@@ -50,7 +49,7 @@ spec:
       terminationGracePeriodSeconds: 60
       containers:
         - name: llama
-          image: ghcr.io/ggml-org/llama.cpp   # :server-cuda tag set in kustomization.yaml (ENTRYPOINT is llama-server)
+          image: ghcr.io/ggml-org/llama.cpp   # tag set in kustomization.yaml (ENTRYPOINT is llama-server)
           args:
             - -m
             - /models/Qwen3.8-27B-Unleashed-UD-Q6_K.gguf

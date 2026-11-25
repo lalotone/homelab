@@ -1,8 +1,7 @@
 # llama.cpp Qwen3.8-27B — the 27B brain that leaves room for a GPU voice
 
-> **Standby since 2026-10-28** (`replicas: 0`): [Gemma 4 26B A4B](../gemma4-26b-a4b/) is the brain now, ~3x faster.
-> This one stays ready to roll back to (how: that README, "Swap and roll back"). The Service moved to
-> [`../shared`](../shared/) so both brains use the same pinned ClusterIP; the rest of this page is as it was.
+> **Running since 2026-11-25** with the Unleashed Q6_K; [Gemma 4](../gemma4-26b-a4b/) is at `replicas: 0`. The Service
+> is in [`../shared`](../shared/), so both brains use the same pinned ClusterIP.
 
 The 27B model served by [llama.cpp](https://github.com/ggml-org/llama.cpp) `llama-server`, split across both RTX 5060 Ti
 on heavy1 with `--tensor-split`. It's the **Mode A alternative to**
@@ -143,7 +142,5 @@ lands on card 1 after a restart, both cards still fit (~15 of 16.3 GB on the bus
 
 ## Image tag
 
-`ghcr.io/ggml-org/llama.cpp:server-cuda` in `kustomization.yaml`. **Not `:server`**: that one is the CPU-only build and
-ignores the GPU flags without failing. `server-cuda` is still a moving tag; after a good start, pin the exact build
-(`newTag: server-cuda-b<NNNN>`, listed on the package's container tags page) the same way the vLLM kustomization pins
-its version, so an upstream flag rename can't break a live deployment.
+`ghcr.io/ggml-org/llama.cpp:server-cuda-b12063`, pinned in `kustomization.yaml`. **Not `:server`**: that one is the
+CPU-only build and ignores the GPU flags without failing.
