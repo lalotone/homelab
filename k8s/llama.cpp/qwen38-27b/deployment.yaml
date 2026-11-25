@@ -70,9 +70,9 @@ spec:
             - --mmproj-device
             - CUDA1
             - --image-max-tokens
-            - "2048"                    # ~1660x1250 px of detail per image (bench work: markings, parts); ~2k of the 16k context
+            - "2048"                    # ~1660x1250 px of detail per image (bench work: markings, parts); ~2k tokens of context
             - --ctx-size
-            - "16384"                   # same working context as vLLM's with-voice overlay
+            - "131072"                  # 128K for OpenCode, shared by the slots: ~4.25 GiB of KV cache (16 full-attention layers, q8_0)
             - --cache-type-k
             - q8_0                      # quantized KV cache: ~half the memory of f16
             - --cache-type-v
@@ -96,7 +96,7 @@ spec:
               memory: 8Gi
               nvidia.com/gpu: 2
             limits:
-              memory: 16Gi
+              memory: 32Gi              # llama.cpp keeps prompt snapshots (checkpoints, prompt cache) in RAM
               nvidia.com/gpu: 2
           startupProbe:                         # 1st start: read the 16 GB GGUF from disk + load to the GPUs
             httpGet:

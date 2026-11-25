@@ -92,7 +92,7 @@ With a Q4, expect ~9-10 GB used per card, leaving room for the voice's ~3.25 GiB
 | `--mmproj` | `/models/mmproj-Unleashed-f16.gguf` | vision: images (and video) over the OpenAI API |
 | `--mmproj-device CUDA1` | | the vision encoder (~1 GB) on the same card as the main work |
 | `--image-max-tokens 2048` | | ~1660x1250 px of detail per image (bench work: markings, parts); at most ~2k of the 16k context |
-| `--ctx-size 16384` | | same working context as vLLM's with-voice |
+| `--ctx-size 131072` | | 128K for OpenCode (its own prompt is ~11k), shared by the slots. ~4.25 GiB of KV cache in total: the voice pod doesn't fit next to it (for Rocky: 16384 and a Q4) |
 | `--cache-type-k/v q8_0` | | quantized KV ≈ half the memory of f16 |
 | `--jinja` | | use the model's chat template from the GGUF (tools/thinking) |
 | `--alias qwen3.8-27b` | | served name matches vLLM's, so clients are unchanged |
