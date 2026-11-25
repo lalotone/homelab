@@ -96,6 +96,8 @@ With a Q4, expect ~9-10 GB used per card, leaving room for the voice's ~3.25 GiB
 | `--cache-type-k/v q8_0` | | quantized KV ≈ half the memory of f16 |
 | `--jinja` | | use the model's chat template from the GGUF (tools/thinking) |
 | `--chat-template-kwargs` | `{"reasoning_effort":"medium"}` | the template defaults to `xhigh`, which overthinks; a request can still ask for `low` or `xhigh` (not `high`: the template rejects it) |
+| `--spec-type draft-mtp`, `--spec-draft-n-max 3` | | speculative decoding with the MTP head inside the GGUF: guesses 3 tokens ahead (added 2026-11-25, not benchmarked) |
+| `--spec-draft-ngl all`, `--spec-draft-device CUDA1` | | keep the draft on the GPU, on the card with more free memory |
 | `--alias qwen3.8-27b` | | served name matches vLLM's, so clients are unchanged |
 
 The `esp32-homeai` API talks to this over the standard OpenAI `/v1/chat/completions` endpoint, which `llama-server`

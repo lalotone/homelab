@@ -80,6 +80,16 @@ spec:
             - --jinja                   # use the model's own chat template from the GGUF
             - --chat-template-kwargs    # the template's default effort is xhigh, which overthinks; a request can still override it
             - '{"reasoning_effort":"medium"}'
+            # Speculative decoding with the MTP head built into the GGUF: it guesses the next 3 tokens, the model checks them
+            # in one pass. Draft on the GPU (Gemma's MTP was very slow with the default placement), on CUDA1 (more free).
+            - --spec-type
+            - draft-mtp
+            - --spec-draft-n-max
+            - "3"
+            - --spec-draft-ngl
+            - all
+            - --spec-draft-device
+            - CUDA1
             - --alias
             - qwen3.8-27b               # served model name (matches vLLM's, so clients are unchanged)
             - --host
