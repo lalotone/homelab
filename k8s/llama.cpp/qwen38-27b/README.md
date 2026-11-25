@@ -95,6 +95,7 @@ With a Q4, expect ~9-10 GB used per card, leaving room for the voice's ~3.25 GiB
 | `--ctx-size 131072` | | 128K for OpenCode (its own prompt is ~11k), shared by the slots. ~4.25 GiB of KV cache in total: the voice pod doesn't fit next to it (for Rocky: 16384 and a Q4) |
 | `--cache-type-k/v q8_0` | | quantized KV ≈ half the memory of f16 |
 | `--jinja` | | use the model's chat template from the GGUF (tools/thinking) |
+| `--chat-template-kwargs` | `{"reasoning_effort":"medium"}` | the template defaults to `xhigh`, which overthinks; a request can still ask for `low` or `xhigh` (not `high`: the template rejects it) |
 | `--alias qwen3.8-27b` | | served name matches vLLM's, so clients are unchanged |
 
 The `esp32-homeai` API talks to this over the standard OpenAI `/v1/chat/completions` endpoint, which `llama-server`

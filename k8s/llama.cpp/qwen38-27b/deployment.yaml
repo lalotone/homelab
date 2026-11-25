@@ -78,6 +78,8 @@ spec:
             - --cache-type-v
             - q8_0
             - --jinja                   # use the model's own chat template from the GGUF
+            - --chat-template-kwargs    # the template's default effort is xhigh, which overthinks; a request can still override it
+            - '{"reasoning_effort":"medium"}'
             - --alias
             - qwen3.8-27b               # served model name (matches vLLM's, so clients are unchanged)
             - --host
