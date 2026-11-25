@@ -14,7 +14,7 @@ on heavy1 with `--tensor-split`. It's the **Mode A alternative to**
 vLLM (even in its
 [with-voice](../../vllm/qwen38-27b-single/with-voice/) squeeze) reserves a fixed fraction of each card and only leaves
 ~3.2 GiB, which is the ceiling Qwen3-TTS can just barely fit. llama.cpp is sized by its inputs instead: it allocates the
-weights plus exactly the KV cache you ask for, and stops there. A Q4_K_XL 27B split in two is ~8.2 GiB of weights per
+weights plus exactly the KV cache you ask for, and stops there. A Q4 27B (the GGUF used until 2026-11-25) split in two is ~8 GiB of weights per
 card; with a 16k quantized KV cache that's ~9 GiB in use, leaving **~6-7 GiB free per card** — comfortably enough for
 the voice assistant's TTS to run on a GPU share instead of the CPU.
 
@@ -33,30 +33,36 @@ NodePort 30801 for outside the cluster.
 
 ## Before the first apply
 
-1. **The model on heavy1.** `llama-server` reads the GGUF straight from disk (hostPath), so it must already be at
-   `/mnt/models/Qwen3.8-27B-UD-Q4_K_XL.gguf`:
+1. **The model on heavy1.** [`Qwen3.8-27B-Unleashed`](https://huggingface.co/outsourc-e/Qwen3.8-27B-Unleashed-GGUF)
+   (an uncensored Qwen3.8-27B: it doesn't refuse), UD-Q6_K, plus its **vision projector** (GGUF keeps the vision
+   encoder in a separate file; use this repo's, built from the same weights). `llama-server` reads both straight from
+   disk (hostPath). Pinned to a commit and checked:
 
    ```bash
-   ssh -t heavy1 'sudo mkdir -p /mnt/models'
-   scp ~/path/to/Qwen3.8-27B-UD-Q4_K_XL.gguf heavy1:/mnt/models/
-   ```
-
-   Also the **vision projector** (Qwen3.8-27B is multimodal; GGUF keeps the vision encoder in a separate file):
-
-   ```bash
-   ssh heavy1 'cd /mnt/models && curl -fL -o mmproj-F16.gguf \
-     https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/mmproj-F16.gguf'   # 0.93 GB
+   ssh heavy1 'cd /mnt/models && \
+     R=https://huggingface.co/outsourc-e/Qwen3.8-27B-Unleashed-GGUF/resolve/67a999218fd7002f11bf82bc81d6289beea60841 && \
+     curl -fL -C - -O $R/Qwen3.8-27B-Unleashed-UD-Q6_K.gguf && \
+     curl -fL -C - -O $R/mmproj-Unleashed-f16.gguf && \
+     sha256sum -c - <<EOF
+   33e98f970171fbf7ac038991cd774ada2ecaa36168b540e34bef35ddc90888c1  Qwen3.8-27B-Unleashed-UD-Q6_K.gguf
+   02b26e0e0e3f1b09be342f21cff7461f571ce491a2ce514a5e7c9880fc1cee2e  mmproj-Unleashed-f16.gguf
+   EOF'   # 22.1 GB + 0.93 GB
    ```
 
    The volume is `type: Directory`, so if `/mnt/models` doesn't exist the pod fails to start (intended: fail fast
    rather than serve with no model). The filename is baked into the `-m` flag — rename the file and you must edit
    `deployment.yaml` to match. It's a single-file model, so there's no HF cache or `HF_HUB_OFFLINE` to set up here.
-2. **Disk.** The GGUF is ~16-17 GB; with the vLLM-era caches it must still leave the ~33 GB the kubelet evicts below
+2. **Disk.** The files are 23 GB: they don't fit next to the previous model (`Qwen3.8-27B-UD-Q4_K_XL.gguf` and
+   `mmproj-F16.gguf`), so remove those first. With the vLLM-era caches it must still leave the ~33 GB the kubelet evicts below
    on heavy1 (see `k8s/esp32-homeai/README.md`).
 
 ## Memory budget per RTX 5060 Ti (15.47 GB usable)
 
-Estimate for Q4_K_XL (~4.5 bits/weight), `--ctx-size 16384`, `--cache-type-k/v q8_0`, `--tensor-split 1,1`:
+Estimate for a Q4 GGUF (~4.5 bits/weight), `--ctx-size 16384`, `--cache-type-k/v q8_0`, `--tensor-split 1,1`:
+
+**Q6_K (now): doesn't fit next to the GPU voice.** Its file is 4.5 GB larger than the old Q4_K_XL, so ~2.2 GB more per
+card: ~11.7 of 16.3 GB, and ~16.6 with the voice pod (~5 GB). Estimated from the Q4_K_XL measurements, not measured.
+For Rocky, use the same repo's `UD-Q4_K_M` (16.5 GB). The table is the Q4:
 
 | GiB per card | Estimate |
 |---|---|
@@ -73,18 +79,18 @@ llama.cpp prints nothing like vLLM's KV budget, so verify empirically on heavy1 
 nvidia-smi --query-gpu=index,memory.used,memory.total --format=csv
 ```
 
-Expect ~9-10 GB used per card, leaving room for the voice's ~3.25 GiB. If the voice OOMs, shrink `--ctx-size`
+With a Q4, expect ~9-10 GB used per card, leaving room for the voice's ~3.25 GiB. If the voice OOMs, shrink `--ctx-size`
 (16384 → 8192 roughly halves the KV) — the weights dominate, so context is the cheap knob.
 
 ## Flags
 
 | Flag | Value | Why |
 |---|---|---|
-| `-m` | `/models/Qwen3.8-27B-UD-Q4_K_XL.gguf` | hostPath-mounted from `/mnt/models` |
+| `-m` | `/models/Qwen3.8-27B-Unleashed-UD-Q6_K.gguf` | hostPath-mounted from `/mnt/models` |
 | `--n-gpu-layers 9999` | all | everything on the GPUs, none offloaded |
 | `--tensor-split 1,1` | even | equal split across the two cards (needs both to be visible) |
 | `--main-gpu 1` | | the "main" card: CUDA1 = `06:00.0` (with `CUDA_DEVICE_ORDER=PCI_BUS_ID`), away from the voice pod's usual card |
-| `--mmproj` | `/models/mmproj-F16.gguf` | vision: images (and video) over the OpenAI API |
+| `--mmproj` | `/models/mmproj-Unleashed-f16.gguf` | vision: images (and video) over the OpenAI API |
 | `--mmproj-device CUDA1` | | the vision encoder (~1 GB) on the same card as the main work |
 | `--image-max-tokens 2048` | | ~1660x1250 px of detail per image (bench work: markings, parts); at most ~2k of the 16k context |
 | `--ctx-size 16384` | | same working context as vLLM's with-voice |
@@ -110,7 +116,7 @@ curl http://<heavy1>:30801/v1/chat/completions -H 'Content-Type: application/jso
 ```
 
 `curl http://<heavy1>:30801/props` shows `"modalities": {"vision": true, ...}` when the projector loaded. Measured on
-2026-10-22: ~4 s for a photo (≈1,000 prompt tokens; with the 2048 cap on 2026-10-23, ~8 s and card 1 peaking at 10.7 GB); the projector added ~1 GB to card 1 (10.5 GB used, peak 10.6 GB
+2026-10-22 with the previous GGUF (unsloth UD-Q4_K_XL): ~4 s for a photo (≈1,000 prompt tokens; with the 2048 cap on 2026-10-23, ~8 s and card 1 peaking at 10.7 GB); the projector added ~1 GB to card 1 (10.5 GB used, peak 10.6 GB
 during an image), card 0 with the voice pod unchanged (13.3 GB); text speed unchanged at 22.8 tok/s. If the voice pod
 lands on card 1 after a restart, both cards still fit (~15 of 16.3 GB on the busier one).
 
