@@ -73,6 +73,8 @@ spec:
             - "2048"                    # ~1660x1250 px of detail per image (bench work: markings, parts); ~2k tokens of context
             - --ctx-size
             - "131072"                  # 128K for OpenCode, shared by the slots: ~4.25 GiB of KV cache (16 full-attention layers, q8_0)
+            - --parallel
+            - "1"                       # one slot gets all 128K; the default (4 slots sharing it) let OpenCode's parallel requests overflow it
             - --cache-type-k
             - q8_0                      # quantized KV cache: ~half the memory of f16
             - --cache-type-v
